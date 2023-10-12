@@ -13,7 +13,8 @@
     {
         "imports": {
             "three": "https://unpkg.com/three@0.157.0/build/three.module.js",
-            "stl-loader": "https://unpkg.com/three@0.157.0/examples/jsm/loaders/STLLoader.js"
+            "stl-loader": "https://unpkg.com/three@0.157.0/examples/jsm/loaders/STLLoader.js",
+            "orbit-control": "https://unpkg.com/three@0.157.0/examples/jsm/controls/OrbitControls.js"
         }
     }
     </script>
@@ -21,15 +22,18 @@
     <script type="module">
         import * as THREE from 'three';
         import { STLLoader } from 'stl-loader';
+        import { OrbitControls } from 'orbit-control';
 
         const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 200);
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         camera.position.z = 300;
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setClearColor(0xeeeeee); // Set a light grey background color
         document.body.appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
 
         // Add an ambient light and a directional light
         scene.add(new THREE.AmbientLight(0x999999));
