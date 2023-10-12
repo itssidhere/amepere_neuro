@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Message Display</title>
+    <style>
+        #main-header, #latest-message-wrapper {
+            display: inline-block;
+            vertical-align: middle;
+        }
+    </style>
+    <script src="https://threejs.org/build/three.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            // Three.js setup
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            const renderer = new THREE.WebGLRenderer();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+        
+            const material = new THREE.LineBasicMaterial({ color: 0xff0000 });
+            const geometry = new THREE.BufferGeometry();
+            const points = [];
+            const line = new THREE.Line(geometry, material);
+            scene.add(line);
+            camera.position.z = 15;
+        
+            function animate() {
+                requestAnimationFrame(animate);
+                renderer.render(scene, camera);
+            }
+            animate();
+        
+            const socket = new WebSocket('ws://' + window.location.host + '/ws/message/');
+            socket.onmessage = function(e) {
+                const data = JSON.parse(e.data);
+                document.querySelector("#latest-message").innerText = data.message;
+                
+                // Split data.message using ',' and convert each element to a float
+                const coords = data.message.split(",").map(item => parseFloat(item, 10) * 50);
+                const newPoint = new THREE.Vector3(...coords);
+                
+                // Check if points array is empty or new point is different from the last point
+                if (points.length === 0 || !newPoint.equals(points[points.length - 1])) {
+                    points.push(newPoint);
+                    geometry.setFromPoints(points);
+                }
+
+                console.log(points);
+            
+                // Adjust camera if needed, or add more visualization controls/logic
+            };
+            
+        });
+        
+    </script>
+</head>
+<body>
+    <h1 id="main-header">Latest Message -</h1>
+    <span id="latest-message-wrapper"><h1 id="latest-message"></h1></span>
+</body>
+</html>
