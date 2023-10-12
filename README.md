@@ -1,5 +1,10 @@
 # Steps to run the project
 
+# Install Django
+```
+pip install django
+```
+
 # Install the requirements
 ```
 pip install -r requirements.txt
@@ -17,5 +22,5 @@ python3 socketio_app.py
 
 # then in a new terminal run the app using asgi server
 ```
-daphne ampere_neuro.asgi:application
+python3 manage.py runserver
 ```
