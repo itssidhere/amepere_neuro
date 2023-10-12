@@ -8,143 +8,58 @@
             vertical-align: middle;
         }
     </style>
-    <!-- <script src="https://threejs.org/build/three.js"></script>
-    <script src="https://github.com/mrdoob/three.js/raw/dev/examples/jsm/loaders/STLLoader.js"></script> -->
 
     <script type="importmap">
     {
-        "imports": 
-        {
+        "imports": {
             "three": "https://unpkg.com/three@0.157.0/build/three.module.js",
             "stl-loader": "https://unpkg.com/three@0.157.0/examples/jsm/loaders/STLLoader.js"
         }
     }
     </script>
+
     <script type="module">
         import * as THREE from 'three';
         import { STLLoader } from 'stl-loader';
 
-        // document.addEventListener("DOMContentLoaded", function() {
-        //     // Three.js setup
-        //     const scene = new THREE.Scene();
-        //     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        //     const renderer = new THREE.WebGLRenderer();
-        //     renderer.setSize(window.innerWidth, window.innerHeight);
-        //     document.body.appendChild(renderer.domElement);
-        
-        //     const material = new THREE.LineBasicMaterial({ color: 0xff0000 });
-        //     const geometry = new THREE.BufferGeometry();
-        //     const points = [];
-        //     const line = new THREE.Line(geometry, material);
-        //     scene.add(line);
-        //     camera.position.z = 15;
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 200);
+        camera.position.z = 100;
 
-        //     // STL Loader
-        //     const loader = new STLLoader();
-        //     loader.load(
-        //         '/static/STLs/Segment_24.stl',
-        //         function (geometry) {
-        //             const mesh = new THREE.Mesh(geometry)
-        //             scene.add(mesh)
-        //         },
-        //         (xhr) => {
-        //             console.log((xhr.loaded / xhr.total) * 100 + '% loaded')
-        //         },
-        //         (error) => {
-        //             console.log(error)
-        //         }
-        //     )
-        
-        //     function animate() {
-        //         requestAnimationFrame(animate);
-        //         renderer.render(scene, camera);
-        //     }
-        //     animate();
-        
-        //     const socket = new WebSocket('ws://' + window.location.host + '/ws/message/');
-        //     socket.onmessage = function(e) {
-        //         const data = JSON.parse(e.data);
-        //         document.querySelector("#latest-message").innerText = data.message;
-                
-        //         // Split data.message using ',' and convert each element to a float
-        //         const coords = data.message.split(",").map(item => parseFloat(item, 10) * 50);
-        //         const newPoint = new THREE.Vector3(...coords);
-                
-        //         // Check if points array is empty or new point is different from the last point
-        //         if (points.length === 0 || !newPoint.equals(points[points.length - 1])) {
-        //             points.push(newPoint);
-        //             geometry.setFromPoints(points);
-        //         }
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setClearColor(0xeeeeee); // Set a light grey background color
+        document.body.appendChild(renderer.domElement);
 
-        //         console.log(points);
-            
-        //         // Adjust camera if needed, or add more visualization controls/logic
-        //     };
-            
-        // });
+        // Add an ambient light and a directional light
+        scene.add(new THREE.AmbientLight(0x999999));
+        const light = new THREE.DirectionalLight(0xffffff, 0.5);
+        light.position.set(10, 10, 10);
+        scene.add(light);
 
-        // Define global variables
-            let scene, camera, renderer;
-
-            init();
-            animate();
-
-            function init() {
-                // Create a scene
-                scene = new THREE.Scene();
-
-                // Create a camera
-                camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-                camera.position.z = 5;
-
-                // Create a renderer
-                renderer = new THREE.WebGLRenderer();
-                renderer.setSize(window.innerWidth, window.innerHeight);
-                document.getElementById('container').appendChild(renderer.domElement);
-
-                // Load the STL model
-                const loader = new THREE.STLLoader();
-                loader.load('your-model.stl', function (geometry) {
-                    // Create a material
-                    const material = new THREE.MeshPhongMaterial({ color: 0x00ff00 });
-
-                    // Create a mesh and add it to the scene
-                    const mesh = new THREE.Mesh(geometry, material);
-                    scene.add(mesh);
-                });
-
-                // Add lighting to the scene
-                const light = new THREE.AmbientLight(0x404040);
-                scene.add(light);
-
-                const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
-                directionalLight.position.set(1, 1, 1);
-                scene.add(directionalLight);
-
-                // Set up controls (optional but useful for navigation)
-                const controls = new THREE.OrbitControls(camera, renderer.domElement);
-
-                // Handle window resizing
-                window.addEventListener('resize', onWindowResize, false);
+        const loader = new STLLoader();
+        loader.load(
+            '/static/STLs/Segment_24.stl',
+            function (geometry) {
+                console.log("STL Loaded");
+                const material = new THREE.MeshNormalMaterial();
+                const mesh = new THREE.Mesh(geometry, material);
+                scene.add(mesh);
+            },
+            (xhr) => {
+                console.log((xhr.loaded / xhr.total) * 100 + '% loaded');
+            },
+            (error) => {
+                console.error("An error occurred:", error);
             }
+        );
 
-            function animate() {
-                requestAnimationFrame(animate);
+        function render() {
+            requestAnimationFrame(render);
+            renderer.render(scene, camera);
+        }
 
-                // Rotate the model
-                scene.rotation.x += 0.005;
-                scene.rotation.y += 0.005;
-
-                renderer.render(scene, camera);
-            }
-
-            function onWindowResize() {
-                camera.aspect = window.innerWidth / window.innerHeight;
-                camera.updateProjectionMatrix();
-                renderer.setSize(window.innerWidth, window.innerHeight);
-            }
-
-        
+        render();
     </script>
 </head>
 <body>
