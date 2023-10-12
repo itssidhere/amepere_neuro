@@ -1,6 +1,6 @@
 # Steps to run the project
 
-# install the requirements
+# Install the requirements
 ```
 pip install -r requirements.txt
 ```
@@ -10,7 +10,7 @@ pip install -r requirements.txt
 sudo docker run --rm -p 6379:6379 redis:7
 ```
 
-# then run the script using python3
+# Run the script using python3
 ```
 python3 socketio_app.py
 ```
