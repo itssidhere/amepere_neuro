@@ -24,7 +24,7 @@
 
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 200);
-        camera.position.z = 100;
+        camera.position.z = 300;
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -38,8 +38,12 @@
         scene.add(light);
 
         const loader = new STLLoader();
-        loader.load(
-            '/static/STLs/Segment_24.stl',
+        const stlFiles = {{stl_files | safe}}
+
+        stlFiles.forEach(fileName => {
+            console.log(fileName);
+            loader.load(
+            `/static/STLs/${fileName}`,
             function (geometry) {
                 console.log("STL Loaded");
                 const material = new THREE.MeshNormalMaterial();
@@ -54,6 +58,7 @@
             }
         );
 
+        })
         function render() {
             requestAnimationFrame(render);
             renderer.render(scene, camera);
