@@ -7,7 +7,8 @@ pip install django
 
 # Install the requirements
 ```
-pip install -r requirements.txt
+chmod +x install_script.sh
+./install_script.sh
 ```
 
 # Start the reddis server
