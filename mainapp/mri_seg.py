@@ -3,8 +3,9 @@ import os
 import sys
 from argparse import ArgumentParser
 
-synthseg_home = os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), "SynthSeg")
+synthseg_home = os.path.join(os.path.dirname(os.path.abspath(__file__)), "SynthSeg")
 sys.path.append(synthseg_home)
+print("---------------------------",synthseg_home)
 
 model_dir = os.path.join(synthseg_home, 'models')
 labels_dir = os.path.join(synthseg_home, 'data/labels_classes_priors')
@@ -33,8 +34,17 @@ def SegmentMRI(mri_path, output_path):
     parser.add_argument("--cpu", action="store_true", help="(optional) Enforce running with CPU rather than GPU.")
     parser.add_argument("--v1", action="store_true", help="(optional) Use SynthSeg 1.0 (updated 25/06/22).")
 
+    #remove the manage.py and runserver
+    sys.argv.pop(0)
+    sys.argv.pop(0)
+
+    print(sys.argv)
+
     # parse commandline
     args = vars(parser.parse_args())
+
+
+    print(args)
 
     # print SynthSeg version and checks boolean params for SynthSeg-robust
     if args['robust']:
