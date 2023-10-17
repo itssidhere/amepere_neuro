@@ -10,34 +10,47 @@ fetch('/static/json/config.json')
     .then((json) => { colors = json['colors']; names = json['names']; });
 
 
-function refreshLeftBar(scene)
-{
+function log() {
+    console.log(colors);
+}
+
+function refreshLeftBar(scene) {
     const leftBar = document.getElementById('left-bar');
     leftBar.innerHTML = '';
-    
+
     scene.traverse(function (object) {
-        const color = "color"
-        if (object.isMesh)
-        {
+        if (object.isMesh) {
             const id = object.name.split(':')[0];
-            // console.log(object.name);
-            leftBar.innerHTML += 
-            `<div class="segment" id="segment-${id}" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
-                <span style="font-size:14px">${object.name}</span>
-                <button class="segment-button" id="segment-button-${id}" onclick="console.log(color)" style=" height:20px; width:20px; background-color: #${colors[Number(id)]}; border: 1px solid black;"></button>
-            </div>`;
+            const segmentDiv = document.createElement('div');
+            segmentDiv.className = 'segment';
+            segmentDiv.id = `segment-${id}`;
+            segmentDiv.style = 'display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;';
+
+            const span = document.createElement('span');
+            span.style.fontSize = '14px';
+            span.innerText = object.name;
+
+            const button = document.createElement('button');
+            button.className = 'segment-button';
+            button.id = `segment-button-${id}`;
+            button.style = `height:20px; width:20px; background-color: #${colors[Number(id)]}; border: 1px solid black;`;
+            button.addEventListener('click', () => log());
+
+            segmentDiv.appendChild(span);
+            segmentDiv.appendChild(button);
+
+            leftBar.appendChild(segmentDiv);
         }
     });
 }
 
-function visabilityToggle(segmentName)
-{
+function visabilityToggle(segmentName) {
     let segment = scene.getObjectByName(segmentName);
     segment.visible = !segment.visible;
 }
 
 export default function loadSTLModel(stlFiles) {
-    
+
     const container = document.getElementById('threejs-container');
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
@@ -70,7 +83,6 @@ export default function loadSTLModel(stlFiles) {
 
 
     let count = 0;
-
     stlFiles.forEach(fileName => {
         // console.log(fileName);
         loader.load(

@@ -3,7 +3,6 @@ import os
 from pathlib import Path
 from .models import MriFile
 from django.http import JsonResponse
-from .tasks import run_synthseg
 from . import mri_seg
 
 
