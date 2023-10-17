@@ -25,6 +25,9 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("uploadMriFile/", views.uploadMriFiles, name="uploadMriFile"),
     path("segmentMri/", views.segment_mri, name="segmentMri"),
+    path("run3dSlicer/", views.run_3d_slicer, name="run3dSlicer"),
+    path("getModels/", views.get_models, name="getModels"),
+    path("getStlFolder/", views.get_stl_folder, name="getStlFolder"),
 ]
 
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

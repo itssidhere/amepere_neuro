@@ -109,7 +109,7 @@ export default function loadSTLModel(stlFiles)
     stlFiles.forEach(fileName => {
         // console.log(fileName);
         loader.load(
-            `/static/STLs/${fileName}`,
+            `${fileName}`,
             function (geometry) {
                 // console.log(fileName);
                 const currSeg = fileName.toString().split('_').slice(-1)[0].split('.')[0];
