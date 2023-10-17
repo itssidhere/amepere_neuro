@@ -78,9 +78,10 @@ export default function loadSTLModel(stlFiles)
     const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
     camera.position.z = 300;
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    const renderer = new THREE.WebGLRenderer({ antialias: true , alpha: true });
     renderer.setSize(container.clientWidth, container.clientHeight);  // Adjust size to fit the grid item.
-    renderer.setClearColor(0xeeeeee); // Set a light grey background color
+    // renderer.setClearColor(0xeeeeee); // Set a light grey background color
+    renderer.setClearColor(0x000000, 0); // make it transparent
 
     container.appendChild(renderer.domElement);
     const controls = new OrbitControls(camera, renderer.domElement);
@@ -119,7 +120,7 @@ export default function loadSTLModel(stlFiles)
                 count++;
                 if (count == stlFiles.length) {
                     refreshLeftBar(scene);
-
+                    controls.update();
                 }
             },
             (xhr) => {
@@ -136,6 +137,7 @@ export default function loadSTLModel(stlFiles)
         camera.updateProjectionMatrix();
         renderer.setSize(container.clientWidth, container.clientHeight);
     }
+    
     function render() {
         requestAnimationFrame(render);
         renderer.render(scene, camera);
