@@ -2,6 +2,9 @@ import * as THREE from 'three';
 import { STLLoader } from 'stl-loader';
 import { OrbitControls } from 'orbit-control';
 
+const container = document.getElementById('threejs-container');
+const scene = new THREE.Scene();
+
 let colors = {};
 let names = {};
 
@@ -10,49 +13,68 @@ fetch('/static/json/config.json')
     .then((json) => { colors = json['colors']; names = json['names']; });
 
 
-function log() {
-    console.log(colors);
-}
-
 function refreshLeftBar(scene) {
     const leftBar = document.getElementById('left-bar');
     leftBar.innerHTML = '';
 
-    scene.traverse(function (object) {
-        if (object.isMesh) {
+    let segments = [];
+
+    scene.traverse(function (object) 
+    {
+        if (object.isMesh) 
+        {
             const id = object.name.split(':')[0];
             const segmentDiv = document.createElement('div');
             segmentDiv.className = 'segment';
             segmentDiv.id = `segment-${id}`;
-            segmentDiv.style = 'display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;';
+            segmentDiv.style = 'display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;';
 
             const span = document.createElement('span');
             span.style.fontSize = '14px';
             span.innerText = object.name;
 
             const button = document.createElement('button');
-            button.className = 'segment-button';
+            button.className = 'segment-button flex items-center justify-center';
             button.id = `segment-button-${id}`;
             button.style = `height:20px; width:20px; background-color: #${colors[Number(id)]}; border: 1px solid black;`;
-            button.addEventListener('click', () => log());
+            button.addEventListener('click', () => visabilityToggle(object.name));
+
+            const icon = document.createElement('div');
+            icon.className = 'fas fa-eye-slash text-xs';
+            icon.style.visibility = 'hidden';
 
             segmentDiv.appendChild(span);
             segmentDiv.appendChild(button);
+            button.appendChild(icon);
 
-            leftBar.appendChild(segmentDiv);
+            segments[id] = segmentDiv;
+            // leftBar.appendChild(segmentDiv);
         }
+    });
+
+    segments.forEach(segment => {
+        leftBar.appendChild(segment);
     });
 }
 
 function visabilityToggle(segmentName) {
     let segment = scene.getObjectByName(segmentName);
     segment.visible = !segment.visible;
+
+    let button = document.getElementById(`segment-button-${segmentName.split(':')[0]}`);
+    let icon = button.querySelector('div');
+    if (segment.visible) {
+        button.style.backgroundColor = `#${colors[Number(segmentName.split(':')[0])]}`;
+        icon.style.visibility = 'hidden';
+    } else 
+    { 
+        button.style.backgroundColor = '#dddddd';
+        icon.style.visibility = 'visible';
+    }
 }
 
-export default function loadSTLModel(stlFiles) {
-
-    const container = document.getElementById('threejs-container');
-    const scene = new THREE.Scene();
+export default function loadSTLModel(stlFiles) 
+{
     const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
     camera.position.z = 300;
 
