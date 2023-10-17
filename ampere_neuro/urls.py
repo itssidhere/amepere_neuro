@@ -17,8 +17,14 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 from mainapp import views
+from django.conf import settings
+from django.conf.urls.static import static  
 
 urlpatterns = [
     path("", views.index, name="index"),
     path("admin/", admin.site.urls),
+    path("uploadMriFile/", views.uploadMriFiles, name="uploadMriFile"),
+    path("segmentMri/", views.segment_mri, name="segmentMri"),
 ]
+
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

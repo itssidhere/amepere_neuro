@@ -31,17 +31,20 @@
         
         const stlFiles = {{stl_files|safe}};
         initializeScript(stlFiles);
+
+      
     </script>
 </head>
 <body class="bg-gray-100 h-screen">
+    <input type="file" id="hiddenMriInput" accept=".nii.gz, .nii" style="display: none;">
 
     <div class="bg-white shadow p-4">
         <nav class="container mx-auto flex justify-between">
-            <a href="#" class="flex items-center space-x-2">
+            <a href="#" class="flex items-center space-x-2" id="uploadMriButton">
                 <i class="fas fa-upload"></i>
                 <span>Upload STL</span>
             </a>
-            <a href="#" class="flex items-center space-x-2">
+            <a href="#" class="flex items-center space-x-2" id="segmentMri">
                 <i class="fas fa-cut"></i>
                 <span>Segment</span>
             </a>
@@ -100,7 +103,64 @@
                 
             </div>
         </div>
-    </div> -->
+    </div>
+
+    <script>
+        
+        document.getElementById('uploadMriButton').addEventListener('click', triggerFileSelect)
+        document.getElementById('segmentMri').addEventListener('click', triggerSegmentMri)
+
+
+        
+        function triggerFileSelect(){
+            document.getElementById('hiddenMriInput').click();
+        }
+
+        function triggerSegmentMri(){
+            console.log('Segmenting file')
+            fetch("/segmentMri/",{
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken' : '{{csrf_token}}'
+                }
+            }).then(response => {
+                if(response.ok){
+                    console.log('File segmented successfully')
+                }else{
+                    console.log('Error segmenting file')
+                }
+            }).catch(error => {
+                console.log(error)
+            })
+        }
+
+        document.getElementById('hiddenMriInput').addEventListener('change', function(){
+            if(this.files && this.files[0]){
+                uploadFile(this.files[0])
+            }
+        })
+
+        function uploadFile(file){
+            const formData = new FormData();
+            formData.append('file', file);
+
+            fetch('/uploadMriFile/', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken' : '{{csrf_token}}'
+                }
+            }).then(response => {
+                if(response.ok){
+                    alert('File uploaded successfully')
+                }else{
+                    alert('Error uploading file')
+                }
+            }).catch(error => {
+                console.log(error)
+            })
+        }
+        </script>
 </body>
 
 </html>
