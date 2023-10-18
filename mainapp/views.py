@@ -8,11 +8,18 @@ import json
 
 
 def index(request):
-    BASE_DIR = Path(__file__).resolve().parent
-    STL_DIR = BASE_DIR / "static" / "STLs"
-    stl_files = [f for f in os.listdir(STL_DIR) if f.endswith(".stl")]
+    # BASE_DIR = Path(__file__).resolve().parent
+    # STL_DIR = BASE_DIR / "static" / "STLs"
+    # stl_files = [f for f in os.listdir(STL_DIR) if f.endswith(".stl")]
     model_names = MriFile.objects.all().values_list('name', flat=True)
-    return render(request, "index.html", {"stl_files": stl_files, 'model_names' :  model_names})
+    return render(request, "index.html", {'model_names' :  model_names})
+
+# def index(request):
+#     BASE_DIR = Path(__file__).resolve().parent
+#     STL_DIR = BASE_DIR / "static" / "STLs"
+#     stl_files = [f for f in os.listdir(STL_DIR) if f.endswith(".stl")]
+#     model_names = MriFile.objects.all().values_list('name', flat=True)
+#     return render(request, "index.html", {"stl_files": stl_files, 'model_names' :  model_names})
 
 
 def uploadMriFiles(request):
