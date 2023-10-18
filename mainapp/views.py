@@ -86,6 +86,13 @@ def get_models(request):
     return JsonResponse(data, safe=False)
 
 
+def get_nifti(request):
+    model_name = json.loads(request.body)['model_name']
+    model = MriFile.objects.get(name=model_name)
+    path = "media/" + model.file.name
+    return JsonResponse({"success": True, "file": path})
+
+
 def get_stl_folder(request):
     model_name = json.loads(request.body)['model_name']
     BASE_DIR = Path(__file__).resolve().parent.parent

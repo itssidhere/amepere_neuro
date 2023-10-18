@@ -13,20 +13,15 @@
             "imports": {
                 "three": "https://unpkg.com/three@0.157.0/build/three.module.js",
                 "stl-loader": "https://unpkg.com/three@0.157.0/examples/jsm/loaders/STLLoader.js",
-                "orbit-control": "https://unpkg.com/three@0.157.0/examples/jsm/controls/OrbitControls.js"
+                "orbit-control": "https://unpkg.com/three@0.157.0/examples/jsm/controls/OrbitControls.js",
+                "volume-shader": "https://unpkg.com/three@0.157.0/examples/jsm/shaders/VolumeShader.js"      
             }
         }
-        </script>
-    
-    <script type="module">
-        // Loads 3d model into the scene
-        import initializeScript from "{% static 'js/model_loader.js' %}"
-        
-        const stlFiles = {{stl_files|safe}};
-        {% comment %} initializeScript(stlFiles); {% endcomment %}
-
-      
     </script>
+    
+    <!-- The below script has to be loaded in this way. -->
+    <script type="text/javascript" src="https://unpkg.com/nifti-reader-js@0.6.3/release/current/nifti-reader.js"></script>
+
 </head>
 <body class="bg-gray-100 h-screen">
     <input type="file" id="hiddenMriInput" accept=".nii.gz, .nii" style="display: none;">
@@ -80,30 +75,32 @@
         <div class="w-3/4">
             <div class="grid grid-cols-2 gap-4 h-full">
                 
-                    <div class="bg-gray-800 relative w-full pb-full">
+                    <div class="relative w-full pb-full" >
                         <!-- Content for this grid item. E.g., Three.js rendering -->
-                        <img src="https://via.placeholder.com/150" alt="Placeholder" class="object-cover w-full h-full">
+                        <div style="background-color: red; height: 10%; display: flex; justify-content: start; align-items: center; ">
+                            <span class="text-center text-white text-sm" style="width : 15%">View 1</span>
+                            <input type="range" id="nifti-slider-1" style="width : 75%"></input>
+                            <span id="nifti-value-1" class="text-center text-white text-sm" style="width : 10%">50</span>
+                        </div>
 
-                        
+                        <div id="nifti-container-1" class="bg-black" style="background-color: black; height: 90%;"></div>
                     </div>
               
                
-                    <div id="threejs-container" class="bg-gray-300 relative w-full pb-full" style="background: linear-gradient(to bottom, #7478be 0%, #c1c3e8 100%);">
+                    <div id="threejs-container" class="relative w-full pb-full" style="background: linear-gradient(to bottom, #7478be 0%, #c1c3e8 100%);">
                         <!-- Content for this grid item. E.g., Three.js rendering -->
                         
                     </div>
               
               
-                    <div class="bg-gray-300 relative w-full pb-full">
+                    <div id="nifti-container-2" class="bg-black relative w-full pb-full">
                         <!-- Content for this grid item. E.g., Three.js rendering -->
-                        <img src="https://via.placeholder.com/150" alt="Placeholder" class="object-cover w-full h-full">
 
                     </div>
                
            
-                    <div class="bg-gray-300 relative w-full pb-full">
+                    <div id="nifti-container-3" class="bg-black relative w-full pb-full">
                         <!-- Content for this grid item. E.g., Three.js rendering -->
-                        <img src="https://via.placeholder.com/150" alt="Placeholder" class="object-cover w-full h-full">
 
                     </div>
                 
@@ -111,22 +108,23 @@
         </div>
     </div>
 
-    <script type="text/javascript">
+    <!-- <script type="text/javascript" src="{% static 'js/nifti_loader.js' %}"></script> -->
 
+    <script type="text/javascript">
         let selectedModel = "";
         document.getElementById('uploadMriButton').addEventListener('click', triggerFileSelect)
         document.getElementById('segmentMri').addEventListener('click', triggerSegmentMri)
         document.getElementById('run3dSlicer').addEventListener('click', trigger3dSlicer)
         document.getElementById('initRobot').addEventListener('click', load3dModel)
 
-     
-        
-
-
         function triggerFileSelect(){
             document.getElementById('hiddenMriInput').click();
         }
-    
+
+        async function initialize2dNIFTI(path) {
+                const module = await import('{% static "js/nifti_loader.js" %}');
+                module.loadNIFTI2D(path);
+        }
         
         function getModels(){
             fetch("/getModels/",{
@@ -218,6 +216,29 @@
             }
         })
 
+        async function initialize2d(niftiFile) {
+            fetch('/getNifti/', {
+                method: 'POST',
+                body: JSON.stringify({
+                    model_name: niftiFile
+                }),
+                headers: {
+                    'X-CSRFToken' : '{{csrf_token}}'
+                }
+            }).then(response => {
+                if(response.ok){
+                 response.json().then(async data => {
+                    // console.log(data)
+                    initialize2dNIFTI(data['file']);
+                 })
+                }else{
+                    alert('Error fetching file')
+                }
+            }).catch(error => {
+                console.log(error)
+            })
+        }
+
         function uploadFile(file){
             const formData = new FormData();
             formData.append('file', file);
@@ -244,7 +265,8 @@
             selectedModel = model_name;
             //change the inner html of the button to the selected model and a checkmark
             navBarButton.innerHTML = `<i class="fas fa-check"></i> <span>${model_name}</span>`;
-
+            console.log(model_name)
+            initialize2d(model_name)
         }
 
          function load3dModel(){
@@ -272,13 +294,10 @@
 
         async function initialize3dModel(stlFiles){
             const module = await import('{% static "js/model_loader.js" %}');
-            console.log(stlFiles)
+            // console.log(stlFiles)
             module.default(stlFiles);
         }
         </script>
-
-    
-    
     </body>
 
 </html>
