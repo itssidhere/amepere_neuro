@@ -87,6 +87,7 @@ def SegmentMRI(mri_path, output_path):
 
     args['i'] = mri_path
     args['o'] = output_path
+    args['resample'] = output_path
 
     print(args)
 

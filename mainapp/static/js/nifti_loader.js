@@ -1,61 +1,65 @@
 import * as THREE from 'three';
+import { OrbitControls } from 'orbit-control';
 
-const slider_value_1 = document.getElementById('nifti-value-1');
-const container_1 = document.getElementById('nifti-container-1');
+let colors = {};
 
-const slider_value_2 = document.getElementById('nifti-value-2');
-const container_2 = document.getElementById('nifti-container-2');
+fetch('/static/json/config.json')
+    .then((response) => response.json())
+    .then((json) => { colors = json['colors']; });
 
-const slider_value_3 = document.getElementById('nifti-value-3');
-const container_3 = document.getElementById('nifti-container-3');
+var header, typedData, segmentation;
+var normFactor, contrast = 1.2;
 
 const scene = new THREE.Scene();
 
-const camera_1 = new THREE.PerspectiveCamera(75, container_1.clientWidth / container_1.clientHeight, 0.1, 1000);
-camera_1.position.z = 400;
+const containers = [];
+const cameras = [];
+const renderers = [];
+const sliders = [];
+const texture_data = [];
+const textures = [];
 
-const camera_2 = new THREE.PerspectiveCamera(75, container_1.clientWidth / container_1.clientHeight, 0.1, 1000);
-camera_2.position.y = 10000;
-camera_2.position.z = 400;
-
-const camera_3 = new THREE.PerspectiveCamera(75, container_1.clientWidth / container_1.clientHeight, 0.1, 1000);
-camera_3.position.y = 20000;
-camera_3.position.z = 400;
-
-const renderer_1 = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-renderer_1.setSize(container_1.clientWidth, container_1.clientHeight);  // Adjust size to fit the grid item.
-renderer_1.setClearColor(0x000000); // Set a black background color
-
-const renderer_2 = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-renderer_2.setSize(container_2.clientWidth, container_2.clientHeight);  // Adjust size to fit the grid item.
-renderer_2.setClearColor(0x000000); // Set a black background color
-
-const renderer_3 = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-renderer_3.setSize(container_3.clientWidth, container_3.clientHeight);  // Adjust size to fit the grid item.
-renderer_3.setClearColor(0x000000); // Set a black background color
-
-container_1.appendChild(renderer_1.domElement);
-container_2.appendChild(renderer_2.domElement);
-container_3.appendChild(renderer_3.domElement);
+const segmentation_data = [];
+const segmentation_textures = [];
+const segmentation_on = new Array(70).fill(true);
 
 
-var texture_data_1, texture_1;
-var texture_data_2, texture_2;
-var texture_data_3, texture_3;
+for (let i = 0; i <= 2; i++) {
+    containers.push(document.getElementById(`nifti-container-${i}`));
+    cameras.push(new THREE.PerspectiveCamera(75, containers[i].clientWidth / containers[i].clientHeight, 0.1, 1000));
+    cameras[i].layers.enable(i + 1);
 
-var header, typedData;
-
+    if (i === 0) {
+        cameras[i].rotation.x = - Math.PI / 2;
+    } 
+    else if (i === 2) {
+        cameras[i].rotation.y = Math.PI / 2;
+    }
+    
+    renderers.push(new THREE.WebGLRenderer({ antialias: true, alpha: true }));
+    renderers[i].setSize(containers[i].clientWidth, containers[i].clientHeight);  // Adjust size to fit the grid item.
+    renderers[i].setClearColor(0x000000); // Set a black background color
+}
 
 export function loadNIFTI2D(path) {    
+    scene.clear();
+
+    readSegmentation(path);
+}
+
+function readImage(path) 
+{
+    path = path.replace('.nii.gz', '_resampled.nii.gz');
+
     fetch(path)
         .then(res => res.blob()) // Gets the response and returns it as a blob
         .then(file => {
-            var blob = makeSlice(file, 0, file.size);
-            var reader = new FileReader();
+            let blob = makeSlice(file, 0, file.size);
+            let reader = new FileReader();
 
             reader.onloadend = function (evt) {
                 if (evt.target.readyState === FileReader.DONE) {
-                    readNIFTI(file.name, evt.target.result);
+                    readNIFTI(evt.target.result);
                 }
             };
 
@@ -63,8 +67,66 @@ export function loadNIFTI2D(path) {
         });
 }
 
+
+function readSegmentation(path) {
+    path = path.replace('.nii.gz', '_synthseg.nii.gz');
+    fetch(path)
+        .then(res => res.blob()) // Gets the response and returns it as a blob
+        .then(file => {
+            let blob = makeSlice(file, 0, file.size);
+            let reader = new FileReader();
+
+            reader.onloadend = function (evt) {
+                if (evt.target.readyState === FileReader.DONE) {
+                    let data = evt.target.result;
+
+                    if (nifti.isCompressed(data)) {
+                        data = nifti.decompress(data);
+                    }
+
+                    if (nifti.isNIFTI(data)) {
+                        let segHeader = nifti.readHeader(data);
+                        let segImage = nifti.readImage(segHeader, data);
+
+                        switch (segHeader.datatypeCode) {
+                            case nifti.NIFTI1.TYPE_UINT8:
+                                segmentation = new Uint8Array(segImage);
+                                break;
+                            case nifti.NIFTI1.TYPE_INT16:
+                                segmentation = new Int16Array(segImage);
+                                break;
+                            case nifti.NIFTI1.TYPE_INT32:
+                                segmentation = new Int32Array(segImage);
+                                break;
+                            case nifti.NIFTI1.TYPE_FLOAT32:
+                                segmentation = new Float32Array(segImage);
+                                break;
+                            case nifti.NIFTI1.TYPE_FLOAT64:
+                                segmentation = new Float64Array(segImage);
+                                break;
+                            case nifti.NIFTI1.TYPE_INT8:
+                                segmentation = new Int8Array(segImage);
+                                break;
+                            case nifti.NIFTI1.TYPE_UINT16:
+                                segmentation = new Uint16Array(segImage);
+                                break;
+                            case nifti.NIFTI1.TYPE_UINT32:
+                                segmentation = new Uint32Array(segImage);
+                                break;
+                            default:
+                                return;
+                        }
+                        readImage(path.replace('_synthseg.nii.gz', '.nii.gz'));
+                        // console.log(segmentation);
+                    }
+                }
+            };
+            reader.readAsArrayBuffer(blob);
+        });
+}
+
 function makeSlice(file, start, length) {
-    var fileType = (typeof File);
+    let fileType = (typeof File);
 
     if (fileType === 'undefined') {
         return function () { };
@@ -85,216 +147,235 @@ function makeSlice(file, start, length) {
     return null;
 }
 
-function readNIFTI(name, data) {
-    var niftiImage = null;
-
+function readNIFTI(data) {
     if (nifti.isCompressed(data)) {
         data = nifti.decompress(data);
     }
 
     if (nifti.isNIFTI(data)) {
         header = nifti.readHeader(data);
-        // console.log(header.toFormattedString());
-        niftiImage = nifti.readImage(header, data);
+        // console.log(header);
+        let niftiImage = nifti.readImage(header, data);
 
-        // Create a geometry for the volume
-        texture_data_1 = new Uint8Array(4 * header.dims[1] * header.dims[2]);
-        texture_1 = new THREE.DataTexture(texture_data_1, header.dims[1], header.dims[2]);
-        texture_1.flipY = true;
-        const material_1 = new THREE.MeshBasicMaterial({map: texture_1});
-        const geometry_1 = new THREE.PlaneGeometry(header.dims[1], header.dims[2]);
-        const mesh_1 = new THREE.Mesh(geometry_1, material_1);
-        scene.add(mesh_1);
-
-        texture_data_2 = new Uint8Array(4 * header.dims[1] * header.dims[3]);
-        texture_2 = new THREE.DataTexture(texture_data_2, header.dims[1], header.dims[3]);
-        const material_2 = new THREE.MeshBasicMaterial({map: texture_2});
-        const geometry_2 = new THREE.PlaneGeometry(header.dims[1], header.dims[3]);
-        const mesh_2 = new THREE.Mesh(geometry_2, material_2);
-        mesh_2.position.y = 10000;
-        scene.add(mesh_2);
-
-        texture_data_3 = new Uint8Array(4 * header.dims[2] * header.dims[3]);
-        texture_3 = new THREE.DataTexture(texture_data_3, header.dims[2], header.dims[3]);
-        const material_3 = new THREE.MeshBasicMaterial({map: texture_3});
-        const geometry_3 = new THREE.PlaneGeometry(header.dims[2], header.dims[3]);
-        const mesh_3 = new THREE.Mesh(geometry_3, material_3);
-        mesh_3.position.y = 20000;
-        scene.add(mesh_3);
-
-        // convert raw data to typed array based on nifti datatype
-        if (header.datatypeCode === nifti.NIFTI1.TYPE_UINT8) {
-            typedData = new Uint8Array(niftiImage);
-        } else if (header.datatypeCode === nifti.NIFTI1.TYPE_INT16) {
-            typedData = new Int16Array(niftiImage);
-        } else if (header.datatypeCode === nifti.NIFTI1.TYPE_INT32) {
-            typedData = new Int32Array(niftiImage);
-        } else if (header.datatypeCode === nifti.NIFTI1.TYPE_FLOAT32) {
-            typedData = new Float32Array(niftiImage);
-        } else if (header.datatypeCode === nifti.NIFTI1.TYPE_FLOAT64) {
-            typedData = new Float64Array(niftiImage);
-        } else if (header.datatypeCode === nifti.NIFTI1.TYPE_INT8) {
-            typedData = new Int8Array(niftiImage);
-        } else if (header.datatypeCode === nifti.NIFTI1.TYPE_UINT16) {
-            typedData = new Uint16Array(niftiImage);
-        } else if (header.datatypeCode === nifti.NIFTI1.TYPE_UINT32) {
-            typedData = new Uint32Array(niftiImage);
-        } else {
-            return;
+        switch (header.datatypeCode) {
+            case nifti.NIFTI1.TYPE_UINT8:
+                typedData = new Uint8Array(niftiImage);
+                break;
+            case nifti.NIFTI1.TYPE_INT16:
+                typedData = new Int16Array(niftiImage);
+                break;
+            case nifti.NIFTI1.TYPE_INT32:
+                typedData = new Int32Array(niftiImage);
+                break;
+            case nifti.NIFTI1.TYPE_FLOAT32:
+                typedData = new Float32Array(niftiImage);
+                break;
+            case nifti.NIFTI1.TYPE_FLOAT64:
+                typedData = new Float64Array(niftiImage);
+                break;
+            case nifti.NIFTI1.TYPE_INT8:
+                typedData = new Int8Array(niftiImage);
+                break;
+            case nifti.NIFTI1.TYPE_UINT16:
+                typedData = new Uint16Array(niftiImage);
+                break;
+            case nifti.NIFTI1.TYPE_UINT32:
+                typedData = new Uint32Array(niftiImage);
+                break;
+            default:
+                return;
         }
-        
-        const slider_1 = document.getElementById('nifti-slider-1');
-        slider_1.max = header.dims[3] - 1;
-        slider_1.value = Math.round((header.dims[3] - 1) / 2);
-        slider_1.oninput = function () {
-            displayAxial(slider_1.value);
-        };
 
-        const slider_2 = document.getElementById('nifti-slider-2');
-        slider_2.max = header.dims[1] - 1;
-        slider_2.value = Math.round((header.dims[1] - 1) / 2);
-        slider_2.oninput = function () {
-            displayCoronal(slider_2.value);
-        };
+        let max = 0;
 
-        const slider_3 = document.getElementById('nifti-slider-3');
-        slider_3.max = header.dims[2] - 1;
-        slider_3.value = Math.round((header.dims[2] - 1) / 2);
-        slider_3.oninput = function () {
-            displaySagittal(slider_3.value);
-        };
+        for (let i = 0; i < typedData.length; i++) {
+            if (typedData[i] > max) max = typedData[i];
+        }
 
-        displayAxial(slider_1.value);
-        displayCoronal(slider_2.value);
-        displaySagittal(slider_3.value);
+        normFactor = 255 / max;
+
+        for (let i = 0; i <= 2; i++) {
+            let width, height;
+            if (i === 0) { width = header.dims[1]; height = header.dims[2]; }
+            else if (i === 1) { width = header.dims[1]; height = header.dims[3]; }
+            else { width = header.dims[2]; height = header.dims[3]; }
+
+            texture_data[i] = new Uint8Array(4 * width * height);
+            textures[i] = new THREE.DataTexture(texture_data[i], width, height);
+            const material = new THREE.MeshBasicMaterial({ map: textures[i] });
+            const geometry = new THREE.PlaneGeometry(width, height);
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.layers.set(i + 1);
+
+            segmentation_data[i] = new Uint8Array(4 * width * height);
+            segmentation_textures[i] = new THREE.DataTexture(segmentation_data[i], width, height);
+            const segmentation_material = new THREE.MeshBasicMaterial({ map: segmentation_textures[i] , transparent : true, opacity: 0.5 });
+            const segmentation_geometry = new THREE.PlaneGeometry(width, height);
+            const segmentation_mesh = new THREE.Mesh(segmentation_geometry, segmentation_material);
+            segmentation_mesh.layers.set(i + 1);
+
+            if (i === 0) 
+            {
+                geometry.scale(1, 1/header.pixDims[0], 1);
+                segmentation_geometry.scale(1, 1/header.pixDims[0], 1);
+                mesh.rotation.x = - Math.PI / 2;
+                segmentation_mesh.rotation.x = - Math.PI / 2;
+                cameras[i].position.y = Math.sqrt(Math.pow(header.dims[1] / 2, 2) + Math.pow(header.dims[2] / 2, 2));
+            } 
+            else if (i === 1) 
+            {
+                geometry.scale(1, 1 / header.pixDims[1], 1);
+                segmentation_geometry.scale(1, 1 / header.pixDims[1], 1);
+                cameras[i].position.z = Math.sqrt(Math.pow(header.dims[1] / 2, 2) + Math.pow(header.dims[3] / 2, 2));
+            }
+
+            else if (i === 2) {
+                geometry.scale(1, 1 / header.pixDims[2], 1);
+                segmentation_geometry.scale(1, 1 / header.pixDims[2], 1);
+                mesh.rotation.y = Math.PI / 2;
+                segmentation_mesh.rotation.y = Math.PI / 2;
+                cameras[i].position.x = Math.sqrt(Math.pow(header.dims[2] / 2, 2) + Math.pow(header.dims[3] / 2, 2));
+            }
+
+            scene.add(segmentation_mesh);
+            scene.add(mesh);
+
+            sliders[i] = document.getElementById(`nifti-slider-${i}`);
+            if (i === 0) { 
+                sliders[i].max = header.dims[3] - 1; 
+                sliders[i].value = Math.round((header.dims[3] - 1) / 2);
+                sliders[i].oninput = function () {
+                    displayAxial(sliders[i].value);
+                }
+            } else if (i === 1) {
+                sliders[i].max = header.dims[1] - 1;
+                sliders[i].value = Math.round((header.dims[1] - 1) / 2);
+                sliders[i].oninput = function () {
+                    displayCoronal(sliders[i].value);
+                }
+            } else if (i === 2) {
+                sliders[i].max = header.dims[2] - 1;
+                sliders[i].value = Math.round((header.dims[2] - 1) / 2);
+                sliders[i].oninput = function () {
+                    displaySagittal(sliders[i].value);
+                }
+            }
+
+            containers[i].appendChild(renderers[i].domElement);
+            const control = new OrbitControls(cameras[i], renderers[i].domElement);
+            control.enableRotate = false;
+        }
+        refreshDisplay();
     }
 }
 
-function displayAxial(slice) {
-    slider_value_1.innerHTML = slice;
+// Helper function to update a specific slice view
+function updateSliceView(index, slice) {
+    slice = Number(slice);
 
-    var cols = header.dims[1];
-    var rows = header.dims[2];
+    document.getElementById(`nifti-value-${index}`).innerHTML = slice;
 
-    // draw pixels
+    let cols, rows, sliceOffset;
+
+    if (index === 0) {
+        cols = header.dims[1];
+        rows = header.dims[2];
+    } else if (index === 1) {
+        cols = header.dims[1];
+        rows = header.dims[3];
+    } else if (index === 2) {
+        cols = header.dims[2];
+        rows = header.dims[3];
+    }
+
+    sliceOffset = header.dims[1] * header.dims[2];
+
     let imageData = new Uint8Array(4 * cols * rows);
-    let sliceOffset = cols * rows * slice;
+    let segmentationData = new Uint8Array(4 * cols * rows);
 
-    for (var row = 0; row < rows; row++) {
-        var rowOffset = row * cols;
+    // console.log(segmentation)
 
-        for (var col = 0; col < cols; col++) {
-            var offset = sliceOffset + rowOffset + col;
-            var value = typedData[offset];
+    for (let row = 0; row < rows; row++) {  
+        let rowOffset = row * cols;
+        for (let col = 0; col < cols; col++) {
+            let offset;
+            if (index === 0) {
+                offset = slice * sliceOffset + rowOffset + col;
+            } else if (index === 1) {
+                offset = col + slice * cols + row * sliceOffset;
+            } else if (index === 2) {
+                offset = slice + col * header.dims[1] + row * sliceOffset;
+            }
 
-            imageData[(rowOffset + col) * 4] = value;
-            imageData[(rowOffset + col) * 4 + 1] = value;
-            imageData[(rowOffset + col) * 4 + 2] = value;
-            imageData[(rowOffset + col) * 4 + 3] = 0xFF;
+            let value = typedData[offset] * normFactor;
+            value = Math.round(contrast * (value - 128) + 128);
+            if (value < 0) value = 0;
+            let pixelOffset = (rowOffset + col) * 4;
+            
+            imageData[pixelOffset] = value;
+            imageData[pixelOffset + 1] = value;
+            imageData[pixelOffset + 2] = value;
+            imageData[pixelOffset + 3] = 0xFF;
+
+            let segValue = segmentation[offset];
+            // console.log(segValue);
+            if (segmentation_on[Number(segValue)] === true) {
+                let color = colors[Number(segValue)];
+                segmentationData[pixelOffset] = parseInt(color.substring(0, 2), 16);
+                segmentationData[pixelOffset + 1] = parseInt(color.substring(2, 4), 16);
+                segmentationData[pixelOffset + 2] = parseInt(color.substring(4, 6), 16);
+                segmentationData[pixelOffset + 3] = 0xFF;
+            } else {
+                segmentationData[pixelOffset] = 0x00;
+                segmentationData[pixelOffset + 1] = 0x00;
+                segmentationData[pixelOffset + 2] = 0x00;
+                segmentationData[pixelOffset + 3] = 0x00;
+            }
         }
     }
 
-    texture_data_1.set(imageData);
-    texture_1.needsUpdate = true;
+    // console.log(texture_data[index].length, imageData.length)
+    texture_data[index].set(imageData);
+    textures[index].needsUpdate = true;
+
+    segmentation_data[index].set(segmentationData);
+    segmentation_textures[index].needsUpdate = true;
 
     window.onresize = function () {
-        camera_1.aspect = container_1.clientWidth / container_1.clientHeight;
-        camera_1.updateProjectionMatrix();
-        renderer_1.setSize(container_1.clientWidth, container_1.clientHeight);
+        cameras[index].aspect = containers[index].clientWidth / containers[index].clientHeight;
+        cameras[index].updateProjectionMatrix();
+        renderers[index].setSize(containers[index].clientWidth, containers[index].clientHeight);
     }
 
     function render() {
         requestAnimationFrame(render);
-        renderer_1.render(scene, camera_1);
+        renderers[index].render(scene, cameras[index]);
     }
 
     render();
 }
 
+// Now call the updateSliceView function for each slice view
+function displayAxial(slice) {
+    updateSliceView(0, slice);
+}
 
 function displayCoronal(slice) {
-    slice = Number(slice);
-    slider_value_2.innerHTML = slice;
-
-    var cols = header.dims[2];
-    var rows = header.dims[3];
-
-    // draw pixels
-    let imageData = new Uint8Array(4 * header.dims[2] * header.dims[3]);
-    let sliceOffset = header.dims[2] * header.dims[1];
-
-    for (var row = 0; row < rows; row++) {
-        var rowOffset = row * cols;
-
-        for (var col = 0; col < cols; col++) {
-            var offset = col + slice * cols + row * sliceOffset;
-            var value = typedData[offset];
-
-            imageData[(rowOffset + col) * 4] = value;
-            imageData[(rowOffset + col) * 4 + 1] = value;
-            imageData[(rowOffset + col) * 4 + 2] = value;
-            imageData[(rowOffset + col) * 4 + 3] = 0xFF;
-        }
-    }
-
-
-    texture_data_2.set(imageData);
-    texture_2.needsUpdate = true;
-
-    window.onresize = function () {
-        camera_2.aspect = container_2.clientWidth / container_2.clientHeight;
-        camera_2.updateProjectionMatrix();
-        renderer_2.setSize(container_2.clientWidth, container_2.clientHeight);
-    }
-
-    function render() {
-        requestAnimationFrame(render);
-        renderer_2.render(scene, camera_2);
-    }
-
-    render();
+    updateSliceView(1, slice);
 }
 
 function displaySagittal(slice) {
-    slice = Number(slice);
-    slider_value_3.innerHTML = slice;
-
-    var cols = header.dims[1];
-    var rows = header.dims[3];
-
-    // draw pixels
-    let imageData = new Uint8Array(4 * header.dims[1] * header.dims[3]);
-    let sliceOffset = header.dims[2] * header.dims[1];
-
-    for (var row = 0; row < rows; row++) {
-        var rowOffset = row * cols;
-
-        for (var col = 0; col < cols; col++) {
-            var offset = slice + col * header.dims[2] + row * sliceOffset;
-            var value = typedData[offset];
-
-            imageData[(rowOffset + col) * 4] = value;
-            imageData[(rowOffset + col) * 4 + 1] = value;
-            imageData[(rowOffset + col) * 4 + 2] = value;
-            imageData[(rowOffset + col) * 4 + 3] = 0xFF;
-        }
-    }
-
-
-    texture_data_3.set(imageData);
-    texture_3.needsUpdate = true;
-
-    window.onresize = function () {
-        camera_3.aspect = container_3.clientWidth / container_3.clientHeight;
-        camera_3.updateProjectionMatrix();
-        renderer_3.setSize(container_3.clientWidth, container_3.clientHeight);
-    }
-
-    function render() {
-        requestAnimationFrame(render);
-        renderer_3.render(scene, camera_3);
-    }
-
-    render();
+    updateSliceView(2, slice);
 }
 
+function refreshDisplay()
+{
+    displayAxial(sliders[0].value);
+    displayCoronal(sliders[1].value);
+    displaySagittal(sliders[2].value);
+}
+
+export function visability2DToggle(id) {
+    segmentation_on[id] = !segmentation_on[id];
+    refreshDisplay();
+}

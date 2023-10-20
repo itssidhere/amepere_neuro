@@ -67,7 +67,7 @@ def run_3d_slicer(request):
         path = model.file.path
         OUTPUT_FILE = path.replace(".nii.gz", "_synthseg.nii.gz")
         Seg_Stl_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__)), "seg_stl.py")
-        Slicer_PATH = "/Volumes/T7/INSA-LYON/Slicer.app/Contents/MacOS/Slicer"
+        Slicer_PATH = "/Applications/Slicer.app/Contents/MacOS/Slicer"
         # Run Slicer
         os.system(Slicer_PATH + " --no-splash --no-main-window --python-script " + Seg_Stl_PATH + " " + OUTPUT_FILE)
         print('------------------ Finish Running 3D Slicer ------------------')
