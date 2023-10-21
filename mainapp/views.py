@@ -45,7 +45,12 @@ def segment_mri(request):
         OUTPUT_FOLDER = os.path.dirname(path)
         OUTPUT_FILE = path.replace(".nii.gz", "_synthseg.nii.gz")
 
-        print(OUTPUT_FOLDER, OUTPUT_FILE)    
+        print(OUTPUT_FOLDER, OUTPUT_FILE)
+
+        if os.path.exists(OUTPUT_FILE):
+            print('------------------ MRI already segmented ------------------')
+            return JsonResponse({'status': 'success', 'message': 'MRI already segmented'})
+
 
         mri_seg.SegmentMRI(path, OUTPUT_FOLDER)
         # print(result)
@@ -68,6 +73,11 @@ def run_3d_slicer(request):
         OUTPUT_FILE = path.replace(".nii.gz", "_synthseg.nii.gz")
         Seg_Stl_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__)), "seg_stl.py")
         Slicer_PATH = "/Applications/Slicer.app/Contents/MacOS/Slicer"
+
+        if os.path.exists(OUTPUT_FILE.replace(".nii.gz", "")):
+            print('------------------ 3D Slicer already run ------------------')
+            return JsonResponse({'status': 'success', 'message': '3D Slicer already run'})
+
         # Run Slicer
         os.system(Slicer_PATH + " --no-splash --no-main-window --python-script " + Seg_Stl_PATH + " " + OUTPUT_FILE)
         print('------------------ Finish Running 3D Slicer ------------------')

@@ -41,17 +41,25 @@ for (let i = 0; i <= 2; i++) {
     renderers[i].setClearColor(0x000000); // Set a black background color
 }
 
-export function loadNIFTI2D(path) {    
+export async function loadNIFTI2D(path, seg) {    
     scene.clear();
 
-    readSegmentation(path);
+    if (seg === true)
+    {
+        await readSegmentation(path.replace('.nii.gz', '_synthseg.nii.gz'));
+        await readImage(path.replace('.nii.gz', '_resampled.nii.gz'));
+    } else 
+    {
+        await readImage(path);
+    }
+
+    
+    console.log("loadNIFTI2D done, segmentation: ", seg);
 }
 
-function readImage(path) 
+async function readImage(path) 
 {
-    path = path.replace('.nii.gz', '_resampled.nii.gz');
-
-    fetch(path)
+    await fetch(path)
         .then(res => res.blob()) // Gets the response and returns it as a blob
         .then(file => {
             let blob = makeSlice(file, 0, file.size);
@@ -65,12 +73,12 @@ function readImage(path)
 
             reader.readAsArrayBuffer(blob);
         });
+    
 }
 
 
-function readSegmentation(path) {
-    path = path.replace('.nii.gz', '_synthseg.nii.gz');
-    fetch(path)
+async function readSegmentation(path) {
+    await fetch(path)
         .then(res => res.blob()) // Gets the response and returns it as a blob
         .then(file => {
             let blob = makeSlice(file, 0, file.size);
@@ -116,13 +124,14 @@ function readSegmentation(path) {
                             default:
                                 return;
                         }
-                        readImage(path.replace('_synthseg.nii.gz', '.nii.gz'));
+                        // readImage(path.replace('_synthseg.nii.gz', '.nii.gz'));
                         // console.log(segmentation);
                     }
                 }
             };
             reader.readAsArrayBuffer(blob);
         });
+    return;
 }
 
 function makeSlice(file, start, length) {
@@ -317,6 +326,8 @@ function updateSliceView(index, slice) {
             imageData[pixelOffset + 2] = value;
             imageData[pixelOffset + 3] = 0xFF;
 
+            if (segmentation === undefined) continue;
+            
             let segValue = segmentation[offset];
             // console.log(segValue);
             if (segmentation_on[Number(segValue)] === true) {
