@@ -1,11 +1,19 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'orbit-control';
+import { visability3DToggle } from './model_loader.js'
+
 
 let colors = {};
+let names = {};
+let visabilities = {};
 
 fetch('/static/json/config.json')
     .then((response) => response.json())
-    .then((json) => { colors = json['colors']; });
+    .then((json) => { 
+        colors = json['colors']; 
+        names = json['names']; 
+        visabilities = json['visabilities'];
+});
 
 var header, typedData, segmentation;
 var normFactor, contrast = 1.2;
@@ -21,7 +29,6 @@ const textures = [];
 
 const segmentation_data = [];
 const segmentation_textures = [];
-const segmentation_on = new Array(70).fill(true);
 
 
 for (let i = 0; i <= 2; i++) {
@@ -126,6 +133,8 @@ async function readSegmentation(path) {
                         }
                         // readImage(path.replace('_synthseg.nii.gz', '.nii.gz'));
                         // console.log(segmentation);
+
+                        displaySegmentationList();
                     }
                 }
             };
@@ -330,7 +339,7 @@ function updateSliceView(index, slice) {
             
             let segValue = segmentation[offset];
             // console.log(segValue);
-            if (segmentation_on[Number(segValue)] === true) {
+            if (visabilities[Number(segValue)] === true) {
                 let color = colors[Number(segValue)];
                 segmentationData[pixelOffset] = parseInt(color.substring(0, 2), 16);
                 segmentationData[pixelOffset + 1] = parseInt(color.substring(2, 4), 16);
@@ -386,7 +395,85 @@ function refreshDisplay()
     displaySagittal(sliders[2].value);
 }
 
-export function visability2DToggle(id) {
-    segmentation_on[id] = !segmentation_on[id];
+function visability2DToggle() {
     refreshDisplay();
+}
+
+function displaySegmentationList() {
+    const leftBar = document.getElementById('left-bar');
+    leftBar.innerHTML = '';
+
+    let segmentItems = [];
+
+    let existingSegments = [];
+
+    for (let i = 0; i < segmentation.length; i++) 
+    {
+        if (segmentation[i] == 0 || existingSegments.includes(segmentation[i])) continue;
+        {
+            const id = Number(segmentation[i]);
+            const segmentDiv = document.createElement('div');
+            segmentDiv.className = 'segment';
+            segmentDiv.id = `segment-${id}`;
+            segmentDiv.style = 'display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;';
+
+            const span = document.createElement('span');
+            span.style.fontSize = '14px';
+            span.innerText = id + ': ' + names[id];
+
+            const button = document.createElement('button');
+            button.className = 'segment-button flex items-center justify-center';
+            button.id = `segment-button-${id}`;
+            button.style = `height:20px; width:20px; border: 1px solid black;`;
+            button.addEventListener('click', () => visabilityToggle(id));
+
+            const icon = document.createElement('div');
+            icon.className = 'fas fa-eye-slash text-xs';
+
+            if (visabilities[id] === true) {
+                button.style.backgroundColor = `#${colors[id]}`;
+                icon.style.visibility = 'hidden';
+            } else {
+                button.style.backgroundColor = '#dddddd';
+                icon.style.visibility = 'visible';
+            }
+
+            segmentDiv.appendChild(span);
+            segmentDiv.appendChild(button);
+            button.appendChild(icon);
+
+            segmentItems[id] = segmentDiv;
+            existingSegments.push(segmentation[i]);
+        }
+    }
+
+    segmentItems.forEach(segment => {
+        leftBar.appendChild(segment);
+    });
+}
+
+function refreshSegmentationList(id, visability)
+{
+    let button = document.getElementById(`segment-button-${id}`);
+    let icon = button.querySelector('div');
+    if (visability === true) {
+        button.style.backgroundColor = `#${colors[id]}`;
+        icon.style.visibility = 'hidden';
+    } else {
+        button.style.backgroundColor = '#dddddd';
+        icon.style.visibility = 'visible';
+    }
+}
+
+function visabilityToggle(id) {
+    visabilities[id] = !visabilities[id];
+
+    visability2DToggle();
+    visability3DToggle(id, visabilities[id]);
+    refreshSegmentationList(id, visabilities[id]);
+
+}
+
+export function getVisability(id) {
+    return visabilities[id];
 }
