@@ -30,17 +30,9 @@ function refreshLeftBar(scene) {
 
     let segments = [];
 
-<<<<<<< HEAD
     scene.traverse(function (object) {
         if (object.isMesh) {
-            const id = object.name.split(':')[0];
-=======
-    scene.traverse(function (object) 
-    {
-        if (object.isMesh) 
-        {
             const id = Number(object.name.split(':')[0]);
->>>>>>> 2c263e4cf505114f29abcf346fddd118299b2eef
             const segmentDiv = document.createElement('div');
             segmentDiv.className = 'segment';
             segmentDiv.id = `segment-${id}`;
