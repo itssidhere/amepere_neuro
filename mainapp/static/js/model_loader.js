@@ -4,9 +4,19 @@ import { OrbitControls } from 'orbit-control';
 
 const container = document.getElementById('threejs-container');
 const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+camera.position.z = 300;
+const geometry = new THREE.BufferGeometry();
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setSize(container.clientWidth, container.clientHeight);
+renderer.setClearColor(0x000000, 0);  // make it transparent
+
+const controls = new OrbitControls(camera, renderer.domElement);
 
 let colors = {};
 let names = {};
+let points = [];
 
 fetch('/static/json/config.json')
     .then((response) => response.json())
@@ -19,10 +29,8 @@ function refreshLeftBar(scene) {
 
     let segments = [];
 
-    scene.traverse(function (object) 
-    {
-        if (object.isMesh) 
-        {
+    scene.traverse(function (object) {
+        if (object.isMesh) {
             const id = object.name.split(':')[0];
             const segmentDiv = document.createElement('div');
             segmentDiv.className = 'segment';
@@ -57,6 +65,7 @@ function refreshLeftBar(scene) {
     });
 }
 
+
 function visabilityToggle(segmentName) {
     let segment = scene.getObjectByName(segmentName);
     segment.visible = !segment.visible;
@@ -66,30 +75,55 @@ function visabilityToggle(segmentName) {
     if (segment.visible) {
         button.style.backgroundColor = `#${colors[Number(segmentName.split(':')[0])]}`;
         icon.style.visibility = 'hidden';
-    } else 
-    { 
+    } else {
         button.style.backgroundColor = '#dddddd';
         icon.style.visibility = 'visible';
     }
 }
 
-export default function loadSTLModel(stlFiles) 
-{
-    const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
-    camera.position.z = 300;
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true , alpha: true });
-    renderer.setSize(container.clientWidth, container.clientHeight);  // Adjust size to fit the grid item.
-    // renderer.setClearColor(0xeeeeee); // Set a light grey background color
-    renderer.setClearColor(0x000000, 0); // make it transparent
+export function chai3d() {
+    const socket = new WebSocket('ws://' + window.location.host + '/ws/message/');
+    socket.onmessage = function (e) {
+        const data = JSON.parse(e.data);
+        console.log(data.message);
 
+        // Split data.message using ',' and convert each element to a float
+        const coords = data.message.split(",").map(item => parseFloat(item, 10) * 50);
+        const newPoint = new THREE.Vector3(...coords);
+
+        // Check if points array is empty or new point is different from the last point
+        if (points.length === 0 || !newPoint.equals(points[points.length - 1])) {
+            points.push(newPoint);
+            geometry.setFromPoints(points);
+        }
+
+        console.log(points);
+
+        // Adjust camera if needed, or add more visualization controls/logic
+    };
+}
+
+function render() {
+    requestAnimationFrame(render);
+    renderer.render(scene, camera);
+}
+
+export default function loadSTLModel(stlFiles) {
+    while (scene.children.length > 0) {
+        scene.remove(scene.children[0]);
+    }
+
+
+    chai3d();
+
+
+    container.innerHTML = '';
     container.appendChild(renderer.domElement);
-    const controls = new OrbitControls(camera, renderer.domElement);
 
-    // Create 4 directional lights and add them to the scene
+    // Re-setup lights as they are also cleared from the scene
     for (let i = 0; i < 4; i++) {
         const directionalLight = new THREE.DirectionalLight(0xffffff);
-
         if (i === 0) directionalLight.position.set(-5, 0, -5);
         if (i === 1) directionalLight.position.set(-5, 0, 5);
         if (i === 2) directionalLight.position.set(5, 0, -5);
@@ -104,14 +138,11 @@ export default function loadSTLModel(stlFiles)
 
     const loader = new STLLoader();
 
-
     let count = 0;
     stlFiles.forEach(fileName => {
-        // console.log(fileName);
         loader.load(
             `${fileName}`,
             function (geometry) {
-                // console.log(fileName);
                 const currSeg = fileName.toString().split('_').slice(-1)[0].split('.')[0];
                 const material = new THREE.MeshStandardMaterial({ color: Number("0x" + colors[Number(currSeg)]) });
                 const mesh = new THREE.Mesh(geometry, material);
@@ -136,11 +167,6 @@ export default function loadSTLModel(stlFiles)
         camera.aspect = container.clientWidth / container.clientHeight;
         camera.updateProjectionMatrix();
         renderer.setSize(container.clientWidth, container.clientHeight);
-    }
-    
-    function render() {
-        requestAnimationFrame(render);
-        renderer.render(scene, camera);
     }
 
     render();

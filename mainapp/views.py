@@ -5,6 +5,7 @@ from .models import MriFile
 from django.http import JsonResponse
 from . import mri_seg
 import json
+import datetime
 
 
 def index(request):
@@ -19,12 +20,17 @@ def uploadMriFiles(request):
     if request.method == "POST":
         uploaded_file = request.FILES.get('file')
         if uploaded_file:
-            new_file = MriFile(file=uploaded_file, name= uploaded_file.name)
+            #append timestamp in milliseconds to the file name
+            #change the name of the uploaded file
+
+            file_name = str(datetime.datetime.now().microsecond) + "_" + uploaded_file.name 
+            uploaded_file.name = file_name
+            new_file = MriFile(file=uploaded_file, name= file_name)
             new_file.save()
-            #geth the full path of the file starting from C:/
-            full_path = new_file.file.path
-            print(os.path.dirname(full_path))
-            return JsonResponse({"success": True, "file": uploaded_file.name})
+            
+            # full_path = new_file.file.path
+            
+            return JsonResponse({"success": True, "file": file_name})
         else:
             return JsonResponse({'status': 'error', 'message': 'No file upload'})
         
@@ -37,6 +43,7 @@ def segment_mri(request):
         print('------------------ Segmenting MRI ------------------')
         model = MriFile.objects.get(name=model_name)
         path = model.file.path
+        print("------------------", path, "------------------")
         # result = run_synthseg.apply_async( (last_uploaded_file.file.path, ) )
         OUTPUT_FOLDER = os.path.dirname(path)
         OUTPUT_FILE = path.replace(".nii.gz", "_synthseg.nii.gz")

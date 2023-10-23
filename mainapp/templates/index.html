@@ -17,16 +17,11 @@
             }
         }
         </script>
+        <script type="module">
+        import * as THREE from 'three';
+        </script>
     
-    <script type="module">
-        // Loads 3d model into the scene
-        import initializeScript from "{% static 'js/model_loader.js' %}"
-        
-        const stlFiles = {{stl_files|safe}};
-        {% comment %} initializeScript(stlFiles); {% endcomment %}
-
-      
-    </script>
+   
 </head>
 <body class="bg-gray-100 h-screen">
     <input type="file" id="hiddenMriInput" accept=".nii.gz, .nii" style="display: none;">
