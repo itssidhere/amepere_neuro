@@ -12,7 +12,7 @@ const geometry = new THREE.BufferGeometry();
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setSize(container.clientWidth, container.clientHeight);
 renderer.setClearColor(0x000000, 0);  // make it transparent
-
+const group = new THREE.Group();
 const controls = new OrbitControls(camera, renderer.domElement);
 
 let colors = {};
@@ -90,19 +90,23 @@ export function chai3d() {
     const socket = new WebSocket('ws://' + window.location.host + '/ws/message/');
     socket.onmessage = function (e) {
         const data = JSON.parse(e.data);
-        console.log(data.message);
+        // console.log(data.message);
 
         // Split data.message using ',' and convert each element to a float
-        const coords = data.message.split(",").map(item => parseFloat(item, 10) * 50);
-        const newPoint = new THREE.Vector3(...coords);
+        const quants = data.message.split(",").map(item => parseFloat(item, 10));
+        // console.log(quants);
+        if (group) {
+            // camera.rotation.z = -Math.PI / 2;
+            let euler = new THREE.Euler();
+            const quaternion = new THREE.Quaternion();
+            quaternion.set(quants[1], quants[0], quants[2], quants[3]).normalize();
+            euler.setFromQuaternion(quaternion, 'XYZ');
+            euler.reorder('ZYX');
+            euler.y += Math.PI / 2;
+            euler.x = -euler.x / 2;
+            group.setRotationFromEuler(euler);
 
-        // Check if points array is empty or new point is different from the last point
-        if (points.length === 0 || !newPoint.equals(points[points.length - 1])) {
-            points.push(newPoint);
-            geometry.setFromPoints(points);
         }
-
-        console.log(points);
 
         // Adjust camera if needed, or add more visualization controls/logic
     };
@@ -136,10 +140,15 @@ export default function loadSTLModel(stlFiles) {
         directionalLight.name = "Directional Light " + i;
 
         scene.add(directionalLight);
+
     }
 
-    refreshLeftBar(scene);
+    scene.add(new THREE.AxesHelper(1000));
 
+    refreshLeftBar(scene);
+    const material = new THREE.LineBasicMaterial({ color: 0xff0000 });
+    const line = new THREE.Line(geometry, material);
+    scene.add(line);
     const loader = new STLLoader();
 
     let count = 0;
@@ -151,9 +160,15 @@ export default function loadSTLModel(stlFiles) {
                 const material = new THREE.MeshStandardMaterial({ color: Number("0x" + colors[Number(currSeg)]) });
                 const mesh = new THREE.Mesh(geometry, material);
                 mesh.name = currSeg + ": " + names[Number(currSeg)];
-                scene.add(mesh);
+                //scene.add(mesh);
+                group.add(mesh);
                 count++;
                 if (count == stlFiles.length) {
+                    scene.add(group);
+                    //add a delay
+                    setTimeout(function () {
+                        group.rotation.y = Math.PI / 2;
+                    }, 350);
                     refreshLeftBar(scene);
                     controls.update();
                 }

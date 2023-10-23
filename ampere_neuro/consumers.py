@@ -6,7 +6,6 @@ from asgiref.sync import async_to_sync
 class MessageConsumer(WebsocketConsumer):
     def connect(self):
         self.group_name = "message_group"
-        print("Client connected:", self.channel_name, self.group_name)
         async_to_sync(self.channel_layer.group_add)(self.group_name, self.channel_name)
         self.accept()
 
