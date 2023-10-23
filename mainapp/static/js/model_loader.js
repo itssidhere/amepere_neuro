@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { STLLoader } from 'stl-loader';
 import { OrbitControls } from 'orbit-control';
+import { visability2DToggle } from './nifti_loader.js'
 
 const container = document.getElementById('threejs-container');
 const scene = new THREE.Scene();
@@ -29,9 +30,17 @@ function refreshLeftBar(scene) {
 
     let segments = [];
 
+<<<<<<< HEAD
     scene.traverse(function (object) {
         if (object.isMesh) {
             const id = object.name.split(':')[0];
+=======
+    scene.traverse(function (object) 
+    {
+        if (object.isMesh) 
+        {
+            const id = Number(object.name.split(':')[0]);
+>>>>>>> 2c263e4cf505114f29abcf346fddd118299b2eef
             const segmentDiv = document.createElement('div');
             segmentDiv.className = 'segment';
             segmentDiv.id = `segment-${id}`;
@@ -44,7 +53,7 @@ function refreshLeftBar(scene) {
             const button = document.createElement('button');
             button.className = 'segment-button flex items-center justify-center';
             button.id = `segment-button-${id}`;
-            button.style = `height:20px; width:20px; background-color: #${colors[Number(id)]}; border: 1px solid black;`;
+            button.style = `height:20px; width:20px; background-color: #${colors[id]}; border: 1px solid black;`;
             button.addEventListener('click', () => visabilityToggle(object.name));
 
             const icon = document.createElement('div');
@@ -70,15 +79,18 @@ function visabilityToggle(segmentName) {
     let segment = scene.getObjectByName(segmentName);
     segment.visible = !segment.visible;
 
-    let button = document.getElementById(`segment-button-${segmentName.split(':')[0]}`);
+    let id = Number(segmentName.split(':')[0]);
+    let button = document.getElementById(`segment-button-${id}`);
     let icon = button.querySelector('div');
     if (segment.visible) {
-        button.style.backgroundColor = `#${colors[Number(segmentName.split(':')[0])]}`;
+        button.style.backgroundColor = `#${colors[id]}`;
         icon.style.visibility = 'hidden';
     } else {
         button.style.backgroundColor = '#dddddd';
         icon.style.visibility = 'visible';
     }
+
+    visability2DToggle(id);
 }
 
 

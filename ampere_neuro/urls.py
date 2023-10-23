@@ -27,6 +27,7 @@ urlpatterns = [
     path("segmentMri/", views.segment_mri, name="segmentMri"),
     path("run3dSlicer/", views.run_3d_slicer, name="run3dSlicer"),
     path("getModels/", views.get_models, name="getModels"),
+    path("getNifti/", views.get_nifti, name="getNifti"),
     path("getStlFolder/", views.get_stl_folder, name="getStlFolder"),
 ]
 

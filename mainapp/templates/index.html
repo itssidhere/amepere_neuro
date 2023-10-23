@@ -6,27 +6,36 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/gh/alpinejs/alpine@v2.x.x/dist/alpine.min.js" defer></script>
 
-    <title>Message Display</title>
+    <title>Ampere Neuro</title>
 
     <script type="importmap">
         {
             "imports": {
                 "three": "https://unpkg.com/three@0.157.0/build/three.module.js",
                 "stl-loader": "https://unpkg.com/three@0.157.0/examples/jsm/loaders/STLLoader.js",
-                "orbit-control": "https://unpkg.com/three@0.157.0/examples/jsm/controls/OrbitControls.js"
+                "orbit-control": "https://unpkg.com/three@0.157.0/examples/jsm/controls/OrbitControls.js",
+                "volume-shader": "https://unpkg.com/three@0.157.0/examples/jsm/shaders/VolumeShader.js"      
             }
         }
+<<<<<<< HEAD
         </script>
         <script type="module">
         import * as THREE from 'three';
         </script>
     
    
+=======
+    </script>
+    
+    <!-- The below script has to be loaded in this way. -->
+    <script type="text/javascript" src="https://unpkg.com/nifti-reader-js@0.6.3/release/current/nifti-reader.js"></script>
+
+>>>>>>> 2c263e4cf505114f29abcf346fddd118299b2eef
 </head>
 <body class="bg-gray-100 h-screen">
     <input type="file" id="hiddenMriInput" accept=".nii.gz, .nii" style="display: none;">
 
-    <div class="bg-white shadow p-4">
+    <div class="bg-white shadow p-4" style="height: 8%;">
         <nav class="container mx-auto flex justify-between">
             <div x-data="{ open: false }" class="relative">
                 <button @click="open = !open" class="flex items-center space-x-2" id="navBarButton">
@@ -43,7 +52,7 @@
                         <div class="border-t"></div>
                         <a href="#" id="uploadMriButton" class="block px-4 py-2 text-sm leading-5 text-gray-700 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 flex items-center space-x-2">
                             <i class="fas fa-upload"></i>
-                            <span>Upload STL</span>
+                            <span>Upload NIFTI</span>
                         </a>
                     </div>
                 </div>
@@ -62,7 +71,7 @@
             </a>
         </nav>
     </div>
-    <div class="container p-2 flex h-full mt-2">
+    <div class="container p-2 flex mt-2" style="height: 90%;">
         
         <!-- Left Sidebar -->
         <div id="left-bar" class="w-1/4 bg-white p-4 shadow overflow-auto">
@@ -73,55 +82,70 @@
         
         <!-- Right Main Area -->
         <div class="w-3/4">
-            <div class="grid grid-cols-2 gap-4 h-full">
+            <div class="grid grid-cols-2 gap-2 h-full">
                 
-                    <div class="bg-gray-800 relative w-full pb-full">
+                    <div class="w-full" >
                         <!-- Content for this grid item. E.g., Three.js rendering -->
-                        <img src="https://via.placeholder.com/150" alt="Placeholder" class="object-cover w-full h-full">
-
-                        
+                        <div style="background-color: #eb4933; height: 10%; display: flex; justify-content: start; align-items: center; ">
+                            <span class="text-center text-white text-sm" style="width : 15%">Axial</span>
+                            <input type="range" id="nifti-slider-0" style="width : 75%"></input>
+                            <span id="nifti-value-0" class="text-center text-white text-sm" style="width : 10%">50</span>
+                        </div>
+                        <div id="nifti-container-0" class="bg-black" style="background-color: black; height: 90%;">
+                        </div>
                     </div>
               
                
-                    <div id="threejs-container" class="bg-gray-300 relative w-full pb-full" style="background: linear-gradient(to bottom, #7478be 0%, #c1c3e8 100%);">
+                    <div id="threejs-container" class="w-full" style="background: linear-gradient(to bottom, #7478be 0%, #c1c3e8 100%);">
                         <!-- Content for this grid item. E.g., Three.js rendering -->
                         
                     </div>
               
               
-                    <div class="bg-gray-300 relative w-full pb-full">
+                    <div class="w-full">
                         <!-- Content for this grid item. E.g., Three.js rendering -->
-                        <img src="https://via.placeholder.com/150" alt="Placeholder" class="object-cover w-full h-full">
-
+                        <div style="background-color: #74b74f; height: 10%; display: flex; justify-content: start; align-items: center; ">
+                            <span class="text-center text-white text-sm" style="width : 15%">Coronal</span>
+                            <input type="range" id="nifti-slider-1" style="width : 75%"></input>
+                            <span id="nifti-value-1" class="text-center text-white text-sm" style="width : 10%">50</span>
+                        </div>
+                    
+                        <div id="nifti-container-1" class="bg-black" style="background-color: black; height: 90%;"></div>
                     </div>
                
            
-                    <div class="bg-gray-300 relative w-full pb-full">
+                    <div class="w-full">
                         <!-- Content for this grid item. E.g., Three.js rendering -->
-                        <img src="https://via.placeholder.com/150" alt="Placeholder" class="object-cover w-full h-full">
-
+                        <div style="background-color: #f1d84d; height: 10%; display: flex; justify-content: start; align-items: center; ">
+                            <span class="text-center text-white text-sm" style="width : 15%">Sagittal</span>
+                            <input type="range" id="nifti-slider-2" style="width : 75%"></input>
+                            <span id="nifti-value-2" class="text-center text-white text-sm" style="width : 10%">50</span>
+                        </div>
+                    
+                        <div id="nifti-container-2" class="bg-black" style="background-color: black; height: 90%;"></div>
                     </div>
                 
             </div>
         </div>
     </div>
 
-    <script type="text/javascript">
+    <!-- <script type="text/javascript" src="{% static 'js/nifti_loader.js' %}"></script> -->
 
+    <script type="text/javascript">
         let selectedModel = "";
         document.getElementById('uploadMriButton').addEventListener('click', triggerFileSelect)
         document.getElementById('segmentMri').addEventListener('click', triggerSegmentMri)
         document.getElementById('run3dSlicer').addEventListener('click', trigger3dSlicer)
-        document.getElementById('initRobot').addEventListener('click', load3dModel)
-
-     
-        
-
+        document.getElementById('initRobot').addEventListener('click', startRobot)
 
         function triggerFileSelect(){
             document.getElementById('hiddenMriInput').click();
         }
-    
+
+        async function initialize2dNIFTI(path, segmented=false) {
+                const module = await import('{% static "js/nifti_loader.js" %}');
+                module.loadNIFTI2D(path, segmented);
+        }
         
         function getModels(){
             fetch("/getModels/",{
@@ -174,6 +198,7 @@
             }).then(response => {
                 if(response.ok){
                     console.log('File segmented successfully')
+                    initialize2d(selectedModel, true);
                 }else{
                     console.log('Error segmenting file')
                 }
@@ -198,6 +223,7 @@
             }).then(response => {
                 if(response.ok){
                     console.log('3D Slicer ran successfully')
+                    load3dModel();
                 }else{
                     console.log('Error running 3D Slicer')
                 }
@@ -212,6 +238,29 @@
                 uploadFile(this.files[0])
             }
         })
+
+        function initialize2d(niftiFile, segmented = false) {
+            fetch('/getNifti/', {
+                method: 'POST',
+                body: JSON.stringify({
+                    model_name: niftiFile
+                }),
+                headers: {
+                    'X-CSRFToken' : '{{csrf_token}}'
+                }
+            }).then(response => {
+                if(response.ok){
+                 response.json().then(async data => {
+                    // console.log(data)
+                    initialize2dNIFTI(data['file'], segmented);
+                 })
+                }else{
+                    alert('Error fetching file')
+                }
+            }).catch(error => {
+                console.log(error)
+            })
+        }
 
         function uploadFile(file){
             const formData = new FormData();
@@ -239,7 +288,13 @@
             selectedModel = model_name;
             //change the inner html of the button to the selected model and a checkmark
             navBarButton.innerHTML = `<i class="fas fa-check"></i> <span>${model_name}</span>`;
+            console.log(model_name)
+            initialize2d(model_name, false)
+        }
 
+        function startRobot()
+        {
+            console.log("Starting Robot")
         }
 
          function load3dModel(){
@@ -267,13 +322,10 @@
 
         async function initialize3dModel(stlFiles){
             const module = await import('{% static "js/model_loader.js" %}');
-            console.log(stlFiles)
+            // console.log(stlFiles)
             module.default(stlFiles);
         }
         </script>
-
-    
-    
     </body>
 
 </html>
