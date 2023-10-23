@@ -8,11 +8,15 @@ import json
 
 
 def index(request):
-    BASE_DIR = Path(__file__).resolve().parent
-    STL_DIR = BASE_DIR / "static" / "STLs"
-    stl_files = [f for f in os.listdir(STL_DIR) if f.endswith(".stl")]
     model_names = MriFile.objects.all().values_list('name', flat=True)
-    return render(request, "index.html", {"stl_files": stl_files, 'model_names' :  model_names})
+    return render(request, "index.html", {'model_names' :  model_names})
+
+# def index(request):
+#     BASE_DIR = Path(__file__).resolve().parent
+#     STL_DIR = BASE_DIR / "static" / "STLs"
+#     stl_files = [f for f in os.listdir(STL_DIR) if f.endswith(".stl")]
+#     model_names = MriFile.objects.all().values_list('name', flat=True)
+#     return render(request, "index.html", {"stl_files": stl_files, 'model_names' :  model_names})
 
 
 def uploadMriFiles(request):
@@ -41,7 +45,12 @@ def segment_mri(request):
         OUTPUT_FOLDER = os.path.dirname(path)
         OUTPUT_FILE = path.replace(".nii.gz", "_synthseg.nii.gz")
 
-        print(OUTPUT_FOLDER, OUTPUT_FILE)    
+        print(OUTPUT_FOLDER, OUTPUT_FILE)
+
+        if os.path.exists(OUTPUT_FILE):
+            print('------------------ MRI already segmented ------------------')
+            return JsonResponse({'status': 'success', 'message': 'MRI already segmented'})
+
 
         mri_seg.SegmentMRI(path, OUTPUT_FOLDER)
         # print(result)
@@ -63,7 +72,12 @@ def run_3d_slicer(request):
         path = model.file.path
         OUTPUT_FILE = path.replace(".nii.gz", "_synthseg.nii.gz")
         Seg_Stl_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__)), "seg_stl.py")
-        Slicer_PATH = "/home/sid/Downloads/Slicer-5.4.0-linux-amd64/Slicer"
+        Slicer_PATH = "/Applications/Slicer.app/Contents/MacOS/Slicer"
+
+        if os.path.exists(OUTPUT_FILE.replace(".nii.gz", "")):
+            print('------------------ 3D Slicer already run ------------------')
+            return JsonResponse({'status': 'success', 'message': '3D Slicer already run'})
+
         # Run Slicer
         os.system(Slicer_PATH + " --no-splash --no-main-window --python-script " + Seg_Stl_PATH + " " + OUTPUT_FILE)
         print('------------------ Finish Running 3D Slicer ------------------')
@@ -80,6 +94,13 @@ def get_models(request):
     #convert models to json
     data = list(models.values())
     return JsonResponse(data, safe=False)
+
+
+def get_nifti(request):
+    model_name = json.loads(request.body)['model_name']
+    model = MriFile.objects.get(name=model_name)
+    path = "media/" + model.file.name
+    return JsonResponse({"success": True, "file": path})
 
 
 def get_stl_folder(request):

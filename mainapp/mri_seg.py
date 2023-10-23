@@ -38,13 +38,8 @@ def SegmentMRI(mri_path, output_path):
     sys.argv.pop(0)
     sys.argv.pop(0)
 
-    print(sys.argv)
-
     # parse commandline
     args = vars(parser.parse_args())
-
-
-    print(args)
 
     # print SynthSeg version and checks boolean params for SynthSeg-robust
     if args['robust']:
@@ -92,6 +87,7 @@ def SegmentMRI(mri_path, output_path):
 
     args['i'] = mri_path
     args['o'] = output_path
+    args['resample'] = output_path
 
     print(args)
 
