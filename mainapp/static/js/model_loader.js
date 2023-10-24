@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { STLLoader } from 'stl-loader';
 import { OrbitControls } from 'orbit-control';
-import { visability2DToggle } from './nifti_loader.js'
+import { getVisability } from './nifti_loader.js';
 
 const container = document.getElementById('threejs-container');
 const scene = new THREE.Scene();
@@ -24,65 +24,12 @@ fetch('/static/json/config.json')
     .then((json) => { colors = json['colors']; names = json['names']; });
 
 
-function refreshLeftBar(scene) {
-    const leftBar = document.getElementById('left-bar');
-    leftBar.innerHTML = '';
+export function visability3DToggle(id, visability) {
+    let segment = scene.getObjectByName(id.toString());
 
-    let segments = [];
-
-    scene.traverse(function (object) {
-        if (object.isMesh) {
-            const id = Number(object.name.split(':')[0]);
-            const segmentDiv = document.createElement('div');
-            segmentDiv.className = 'segment';
-            segmentDiv.id = `segment-${id}`;
-            segmentDiv.style = 'display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;';
-
-            const span = document.createElement('span');
-            span.style.fontSize = '14px';
-            span.innerText = object.name;
-
-            const button = document.createElement('button');
-            button.className = 'segment-button flex items-center justify-center';
-            button.id = `segment-button-${id}`;
-            button.style = `height:20px; width:20px; background-color: #${colors[id]}; border: 1px solid black;`;
-            button.addEventListener('click', () => visabilityToggle(object.name));
-
-            const icon = document.createElement('div');
-            icon.className = 'fas fa-eye-slash text-xs';
-            icon.style.visibility = 'hidden';
-
-            segmentDiv.appendChild(span);
-            segmentDiv.appendChild(button);
-            button.appendChild(icon);
-
-            segments[id] = segmentDiv;
-            // leftBar.appendChild(segmentDiv);
-        }
-    });
-
-    segments.forEach(segment => {
-        leftBar.appendChild(segment);
-    });
-}
-
-
-function visabilityToggle(segmentName) {
-    let segment = scene.getObjectByName(segmentName);
-    segment.visible = !segment.visible;
-
-    let id = Number(segmentName.split(':')[0]);
-    let button = document.getElementById(`segment-button-${id}`);
-    let icon = button.querySelector('div');
-    if (segment.visible) {
-        button.style.backgroundColor = `#${colors[id]}`;
-        icon.style.visibility = 'hidden';
-    } else {
-        button.style.backgroundColor = '#dddddd';
-        icon.style.visibility = 'visible';
+    if (segment !== undefined) {
+        segment.visible = visability;
     }
-
-    visability2DToggle(id);
 }
 
 
@@ -145,7 +92,6 @@ export default function loadSTLModel(stlFiles) {
 
     scene.add(new THREE.AxesHelper(1000));
 
-    refreshLeftBar(scene);
     const material = new THREE.LineBasicMaterial({ color: 0xff0000 });
     const line = new THREE.Line(geometry, material);
     scene.add(line);
@@ -159,9 +105,12 @@ export default function loadSTLModel(stlFiles) {
                 const currSeg = fileName.toString().split('_').slice(-1)[0].split('.')[0];
                 const material = new THREE.MeshStandardMaterial({ color: Number("0x" + colors[Number(currSeg)]) });
                 const mesh = new THREE.Mesh(geometry, material);
-                mesh.name = currSeg + ": " + names[Number(currSeg)];
+                mesh.name = currSeg;
                 //scene.add(mesh);
                 group.add(mesh);
+                if (getVisability(Number(currSeg)) === false) {
+                    mesh.visible = false;
+                }
                 count++;
                 if (count == stlFiles.length) {
                     scene.add(group);
@@ -169,7 +118,6 @@ export default function loadSTLModel(stlFiles) {
                     setTimeout(function () {
                         group.rotation.y = Math.PI / 2;
                     }, 350);
-                    refreshLeftBar(scene);
                     controls.update();
                 }
             },
