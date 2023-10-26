@@ -6,6 +6,7 @@ from django.http import JsonResponse
 from . import mri_seg
 import json
 import datetime
+import nibabel as nib
 
 
 def index(request):
@@ -31,6 +32,16 @@ def uploadMriFiles(request):
             uploaded_file.name = file_name
             new_file = MriFile(file=uploaded_file, name= file_name)
             new_file.save()
+
+            img = nib.load(new_file.file.path)
+
+            orig_ornt = nib.io_orientation(img.affine)
+            targ_ornt = nib.orientations.axcodes2ornt("LPS")
+            transform = nib.orientations.ornt_transform(orig_ornt, targ_ornt)
+
+            img_orient = img.as_reoriented(transform)
+
+            nib.save(img_orient, new_file.file.path)
             
             # full_path = new_file.file.path
             

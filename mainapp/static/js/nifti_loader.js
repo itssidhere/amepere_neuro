@@ -26,9 +26,39 @@ const renderers = [];
 const sliders = [];
 const texture_data = [];
 const textures = [];
+const meshes = [];
 
 const segmentation_data = [];
 const segmentation_textures = [];
+
+const pointer = new THREE.Vector2();
+const raycaster = new THREE.Raycaster();
+
+function getMousePos(event) 
+{
+    pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
+    pointer.y = - (event.clientY / window.innerHeight) * 2 + 1;
+
+    const containerID = Number(event.target.parentElement.id.split('-')[2]);
+    raycaster.layers.set(containerID + 1);
+    raycaster.setFromCamera(pointer, cameras[containerID]);
+
+    // const intersects = raycaster.intersectObject(meshes[containerID]);
+
+    // for (let i = 0; i < intersects.length; i++) {
+    //     console.log(intersects[i].point);
+    // }
+}
+
+var isMouseDown = false; 
+
+function onMouseMove(evt) {
+    if (isMouseDown) {
+        getMousePos(evt);
+    }
+}
+
+
 
 
 for (let i = 0; i <= 2; i++) {
@@ -48,8 +78,15 @@ for (let i = 0; i <= 2; i++) {
     renderers[i].setClearColor(0x000000); // Set a black background color
 }
 
-export async function loadNIFTI2D(path, seg) {    
-    scene.clear();
+export async function loadNIFTI2D(path, seg) {   
+
+    while (scene.children.length > 0) {
+        scene.remove(scene.children[0]);
+    }
+
+    segmentation = undefined;
+    
+    document.getElementById('left-bar').innerHTML = '';
 
     if (seg === true)
     {
@@ -101,6 +138,7 @@ async function readSegmentation(path) {
 
                     if (nifti.isNIFTI(data)) {
                         let segHeader = nifti.readHeader(data);
+                        console.log("Segmentation", header);
                         let segImage = nifti.readImage(segHeader, data);
 
                         switch (segHeader.datatypeCode) {
@@ -172,7 +210,7 @@ function readNIFTI(data) {
 
     if (nifti.isNIFTI(data)) {
         header = nifti.readHeader(data);
-        // console.log(header);
+        console.log("NIFTI", header);
         let niftiImage = nifti.readImage(header, data);
 
         switch (header.datatypeCode) {
@@ -204,6 +242,8 @@ function readNIFTI(data) {
                 return;
         }
 
+        // applyTransformationFromHeader(typedData, header);
+
         let max = 0;
 
         for (let i = 0; i < typedData.length; i++) {
@@ -222,8 +262,9 @@ function readNIFTI(data) {
             textures[i] = new THREE.DataTexture(texture_data[i], width, height);
             const material = new THREE.MeshBasicMaterial({ map: textures[i] });
             const geometry = new THREE.PlaneGeometry(width, height);
-            const mesh = new THREE.Mesh(geometry, material);
-            mesh.layers.set(i + 1);
+            meshes[i] = new THREE.Mesh(geometry, material);
+            meshes[i].layers.set(i + 1);
+            meshes[i].name = i;
 
             segmentation_data[i] = new Uint8Array(4 * width * height);
             segmentation_textures[i] = new THREE.DataTexture(segmentation_data[i], width, height);
@@ -232,31 +273,41 @@ function readNIFTI(data) {
             const segmentation_mesh = new THREE.Mesh(segmentation_geometry, segmentation_material);
             segmentation_mesh.layers.set(i + 1);
 
+            // cameras[i].position.set(header.qoffset_x, 0, header.qoffset_z);
+
             if (i === 0) 
             {
-                geometry.scale(1, 1/header.pixDims[0], 1);
-                segmentation_geometry.scale(1, 1/header.pixDims[0], 1);
-                mesh.rotation.x = - Math.PI / 2;
+                const ratio = (header.pixDims[2]) / (header.pixDims[1] );
+                geometry.scale(1, ratio, 1);
+                segmentation_geometry.scale(1, ratio, 1);
+                meshes[i].rotation.x = - Math.PI / 2;
                 segmentation_mesh.rotation.x = - Math.PI / 2;
                 cameras[i].position.y = Math.sqrt(Math.pow(header.dims[1] / 2, 2) + Math.pow(header.dims[2] / 2, 2));
             } 
             else if (i === 1) 
             {
-                geometry.scale(1, 1 / header.pixDims[1], 1);
-                segmentation_geometry.scale(1, 1 / header.pixDims[1], 1);
+                const ratio = (header.pixDims[3]) / (header.pixDims[1]);
+                geometry.scale(1, ratio, 1);
+                segmentation_geometry.scale(1, ratio, 1);
                 cameras[i].position.z = Math.sqrt(Math.pow(header.dims[1] / 2, 2) + Math.pow(header.dims[3] / 2, 2));
             }
 
             else if (i === 2) {
-                geometry.scale(1, 1 / header.pixDims[2], 1);
-                segmentation_geometry.scale(1, 1 / header.pixDims[2], 1);
-                mesh.rotation.y = Math.PI / 2;
+                const ratio = (header.pixDims[3] ) / (header.pixDims[2]);
+                geometry.scale(1, ratio , 1);
+                segmentation_geometry.scale(1, ratio, 1);
+                meshes[i].rotation.y = Math.PI / 2;
                 segmentation_mesh.rotation.y = Math.PI / 2;
                 cameras[i].position.x = Math.sqrt(Math.pow(header.dims[2] / 2, 2) + Math.pow(header.dims[3] / 2, 2));
             }
 
+            // mesh.position.set(header.qoffset_x, header.qoffset_y, header.qoffset_z);
+            // segmentation_mesh.position.set(header.qoffset_x, header.qoffset_y, header.qoffset_z);
+
             scene.add(segmentation_mesh);
-            scene.add(mesh);
+            scene.add(meshes[i]);
+
+            scene.add(new THREE.AxesHelper(100));
 
             sliders[i] = document.getElementById(`nifti-slider-${i}`);
             if (i === 0) { 
@@ -266,14 +317,14 @@ function readNIFTI(data) {
                     displayAxial(sliders[i].value);
                 }
             } else if (i === 1) {
-                sliders[i].max = header.dims[1] - 1;
-                sliders[i].value = Math.round((header.dims[1] - 1) / 2);
+                sliders[i].max = header.dims[2] - 1;
+                sliders[i].value = Math.round((header.dims[2] - 1) / 2);
                 sliders[i].oninput = function () {
                     displayCoronal(sliders[i].value);
                 }
             } else if (i === 2) {
-                sliders[i].max = header.dims[2] - 1;
-                sliders[i].value = Math.round((header.dims[2] - 1) / 2);
+                sliders[i].max = header.dims[1] - 1;
+                sliders[i].value = Math.round((header.dims[1] - 1) / 2);
                 sliders[i].oninput = function () {
                     displaySagittal(sliders[i].value);
                 }
@@ -291,7 +342,9 @@ function readNIFTI(data) {
 function updateSliceView(index, slice) {
     slice = Number(slice);
 
-    document.getElementById(`nifti-value-${index}`).innerHTML = slice;
+    let unit = ["", "m", "mm", "um"];
+
+    document.getElementById(`nifti-value-${index}`).innerHTML = slice + ' ' + unit[header.xyzt_units];
 
     let cols, rows, sliceOffset;
 
@@ -301,6 +354,7 @@ function updateSliceView(index, slice) {
     } else if (index === 1) {
         cols = header.dims[1];
         rows = header.dims[3];
+        slice = header.dims[2] - slice - 1;
     } else if (index === 2) {
         cols = header.dims[2];
         rows = header.dims[3];
@@ -360,6 +414,10 @@ function updateSliceView(index, slice) {
 
     segmentation_data[index].set(segmentationData);
     segmentation_textures[index].needsUpdate = true;
+
+    containers[index].addEventListener('mousedown', (evt) => {isMouseDown = true; onMouseMove(evt)});
+    containers[index].addEventListener('mousemove', onMouseMove);
+    containers[index].addEventListener('mouseup', () => isMouseDown = false);
 
     window.onresize = function () {
         cameras[index].aspect = containers[index].clientWidth / containers[index].clientHeight;
