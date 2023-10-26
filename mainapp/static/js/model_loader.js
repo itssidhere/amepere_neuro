@@ -102,13 +102,14 @@ export default function loadSTLModel(stlFiles) {
         loader.load(
             `${fileName}`,
             function (geometry) {
-                const currSeg = fileName.toString().split('_').slice(-1)[0].split('.')[0];
-                const material = new THREE.MeshStandardMaterial({ color: Number("0x" + colors[Number(currSeg)]) });
+                // const currSeg = fileName.toString().split('_').slice(-1)[0].split('.')[0];
+                const currSeg = Number(fileName.replace(/^.*(\\|\/|\:)/, '').split('.')[0]);
+                const material = new THREE.MeshStandardMaterial({ color: Number("0x" + colors[currSeg]) });
                 const mesh = new THREE.Mesh(geometry, material);
                 mesh.name = currSeg;
                 //scene.add(mesh);
                 group.add(mesh);
-                if (getVisability(Number(currSeg)) === false) {
+                if (getVisability(currSeg) === false) {
                     mesh.visible = false;
                 }
                 count++;

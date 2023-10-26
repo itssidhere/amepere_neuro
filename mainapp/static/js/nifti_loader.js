@@ -310,21 +310,19 @@ function readNIFTI(data) {
             scene.add(new THREE.AxesHelper(100));
 
             sliders[i] = document.getElementById(`nifti-slider-${i}`);
+            sliders[i].max = header.dims[3 - i] - 1;
+            sliders[i].value = Math.round((header.dims[3 - i] - 1) / 2);
+
             if (i === 0) { 
-                sliders[i].max = header.dims[3] - 1; 
-                sliders[i].value = Math.round((header.dims[3] - 1) / 2);
                 sliders[i].oninput = function () {
                     displayAxial(sliders[i].value);
                 }
             } else if (i === 1) {
-                sliders[i].max = header.dims[2] - 1;
-                sliders[i].value = Math.round((header.dims[2] - 1) / 2);
                 sliders[i].oninput = function () {
                     displayCoronal(sliders[i].value);
                 }
             } else if (i === 2) {
-                sliders[i].max = header.dims[1] - 1;
-                sliders[i].value = Math.round((header.dims[1] - 1) / 2);
+
                 sliders[i].oninput = function () {
                     displaySagittal(sliders[i].value);
                 }
@@ -344,7 +342,9 @@ function updateSliceView(index, slice) {
 
     let unit = ["", "m", "mm", "um"];
 
-    document.getElementById(`nifti-value-${index}`).innerHTML = slice + ' ' + unit[header.xyzt_units];
+    const slider_value = Math.round(slice * header.pixDims[3 - index]);
+
+    document.getElementById(`nifti-value-${index}`).innerHTML = slider_value + ' ' + unit[header.xyzt_units];
 
     let cols, rows, sliceOffset;
 
