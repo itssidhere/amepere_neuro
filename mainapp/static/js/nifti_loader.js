@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'orbit-control';
-import { visability3DToggle } from './model_loader.js'
+import { visability3DToggle, updatePointObject } from './model_loader.js'
 
 
 let colors = {};
@@ -33,21 +33,74 @@ const segmentation_textures = [];
 
 const pointer = new THREE.Vector2();
 const raycaster = new THREE.Raycaster();
+const point = new THREE.Vector3();
+
+const raycastPoints = [];
+
+let count = 10;
 
 function getMousePos(event) 
 {
-    pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
-    pointer.y = - (event.clientY / window.innerHeight) * 2 + 1;
-
+    if (count > 0) {
+        count--;
+        return;
+    }
+    count = 10;
     const containerID = Number(event.target.parentElement.id.split('-')[2]);
+
+    const rect = document.getElementById(`nifti-container-${containerID}`).getBoundingClientRect();
+    pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
     raycaster.layers.set(containerID + 1);
     raycaster.setFromCamera(pointer, cameras[containerID]);
 
-    // const intersects = raycaster.intersectObject(meshes[containerID]);
+    const intersects = raycaster.intersectObject(meshes[containerID]);
+    if (intersects.length === 0) return;
 
-    // for (let i = 0; i < intersects.length; i++) {
-    //     console.log(intersects[i].point);
-    // }
+    point.copy(intersects[0].point);
+
+    switch (containerID) {
+        case 0:
+            point.y = Math.round(sliders[0].value - (header.dims[3] - 1) / 2);
+            break;
+        case 1:
+            point.z = Math.round(sliders[1].value - (header.dims[2] - 1) / 2);
+            break;
+        case 2:
+            point.x = Math.round(sliders[2].value - (header.dims[1] - 1) / 2);
+            break;
+    }
+
+    const newSliderValues =
+    [
+        Math.round((header.dims[3] - 1) / 2 + point.y),
+        Math.round((header.dims[2] - 1) / 2 + point.z),
+        Math.round((header.dims[1] - 1) / 2 + point.x)
+    ];
+
+    const pointFloat = new Float32Array(point);
+    // console.log(pointFloat);
+    for (let i = 0; i < 3; i++) {
+        if (sliders[i].value !== newSliderValues[i] && i !== containerID) {
+            sliders[i].value = newSliderValues[i];
+            sliders[i].oninput();
+        }
+
+        raycastPoints[i].position.set(pointFloat[0], pointFloat[1], pointFloat[2]);
+        switch (i) {
+            case 0:
+                raycastPoints[i].position.y = 0;
+                break;
+            case 1:
+                raycastPoints[i].position.z = 0;
+                break;
+            case 2:
+                raycastPoints[i].position.x = 0;
+                break;
+        }
+    }
+    updatePointObject(pointFloat);
 }
 
 var isMouseDown = false; 
@@ -57,9 +110,6 @@ function onMouseMove(evt) {
         getMousePos(evt);
     }
 }
-
-
-
 
 for (let i = 0; i <= 2; i++) {
     containers.push(document.getElementById(`nifti-container-${i}`));
@@ -252,6 +302,8 @@ function readNIFTI(data) {
 
         normFactor = 255 / max;
 
+        scene.add(new THREE.AxesHelper(100));
+
         for (let i = 0; i <= 2; i++) {
             let width, height;
             if (i === 0) { width = header.dims[1]; height = header.dims[2]; }
@@ -264,7 +316,7 @@ function readNIFTI(data) {
             const geometry = new THREE.PlaneGeometry(width, height);
             meshes[i] = new THREE.Mesh(geometry, material);
             meshes[i].layers.set(i + 1);
-            meshes[i].name = i;
+            meshes[i].name = String(i);
 
             segmentation_data[i] = new Uint8Array(4 * width * height);
             segmentation_textures[i] = new THREE.DataTexture(segmentation_data[i], width, height);
@@ -272,6 +324,12 @@ function readNIFTI(data) {
             const segmentation_geometry = new THREE.PlaneGeometry(width, height);
             const segmentation_mesh = new THREE.Mesh(segmentation_geometry, segmentation_material);
             segmentation_mesh.layers.set(i + 1);
+
+            const raycastPointGeometry = new THREE.SphereGeometry(3, 32, 32);
+            const raycastPointMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+            raycastPoints.push(new THREE.Mesh(raycastPointGeometry, raycastPointMaterial));
+            raycastPoints[i].layers.set(i + 1);
+            scene.add(raycastPoints[i]);
 
             // cameras[i].position.set(header.qoffset_x, 0, header.qoffset_z);
 
@@ -307,8 +365,6 @@ function readNIFTI(data) {
             scene.add(segmentation_mesh);
             scene.add(meshes[i]);
 
-            scene.add(new THREE.AxesHelper(100));
-
             sliders[i] = document.getElementById(`nifti-slider-${i}`);
             sliders[i].max = header.dims[3 - i] - 1;
             sliders[i].value = Math.round((header.dims[3 - i] - 1) / 2);
@@ -322,7 +378,6 @@ function readNIFTI(data) {
                     displayCoronal(sliders[i].value);
                 }
             } else if (i === 2) {
-
                 sliders[i].oninput = function () {
                     displaySagittal(sliders[i].value);
                 }

@@ -15,6 +15,11 @@ renderer.setClearColor(0x000000, 0);  // make it transparent
 const group = new THREE.Group();
 const controls = new OrbitControls(camera, renderer.domElement);
 
+const pointGeometry = new THREE.SphereGeometry(3, 32, 32);
+const pointMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+const pointMesh = new THREE.Mesh(pointGeometry, pointMaterial);
+
+
 let colors = {};
 let names = {};
 let points = [];
@@ -23,6 +28,10 @@ fetch('/static/json/config.json')
     .then((response) => response.json())
     .then((json) => { colors = json['colors']; names = json['names']; });
 
+
+export function updatePointObject(newPos) {
+    pointMesh.position.set(newPos[0], newPos[1], newPos[2]);
+}
 
 export function visability3DToggle(id, visability) {
     let segment = scene.getObjectByName(id.toString());
@@ -90,7 +99,8 @@ export default function loadSTLModel(stlFiles) {
 
     }
 
-    scene.add(new THREE.AxesHelper(1000));
+    scene.add(new THREE.AxesHelper(100));
+    scene.add(pointMesh);
 
     const material = new THREE.LineBasicMaterial({ color: 0xff0000 });
     const line = new THREE.Line(geometry, material);
@@ -106,7 +116,7 @@ export default function loadSTLModel(stlFiles) {
                 const currSeg = Number(fileName.replace(/^.*(\\|\/|\:)/, '').split('.')[0]);
                 const material = new THREE.MeshStandardMaterial({ color: Number("0x" + colors[currSeg]) });
                 const mesh = new THREE.Mesh(geometry, material);
-                mesh.name = currSeg;
+                mesh.name = String(currSeg);
                 //scene.add(mesh);
                 group.add(mesh);
                 if (getVisability(currSeg) === false) {
@@ -116,9 +126,11 @@ export default function loadSTLModel(stlFiles) {
                 if (count == stlFiles.length) {
                     scene.add(group);
                     //add a delay
-                    setTimeout(function () {
-                        group.rotation.y = Math.PI / 2;
-                    }, 350);
+                    // setTimeout(function () {
+                    //     group.rotation.y = Math.PI / 2;
+                    // }, 350);
+                    group.rotation.x = - Math.PI / 2;
+                    group.rotation.z = Math.PI;
                     controls.update();
                 }
             },
