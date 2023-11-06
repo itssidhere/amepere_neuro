@@ -69,11 +69,24 @@
         </nav>
     </div>
     <div class="container p-2 flex mt-2" style="height: 90%;">
-        
         <!-- Left Sidebar -->
-        <div id="left-bar" class="w-1/4 bg-white p-4 shadow overflow-auto">
+        <div class="w-1/4 bg-white shadow">
             <!-- Place all your left sidebar components here -->
-            
+            <div class="mx-auto h-full space-y-2 py-2" style="width: 96%;">
+                <a class="px-2">
+                    <i class="fas fa-puzzle-piece"></i>
+                    <span>Segmentations</span>
+                </a>
+                <div id="left-bar" class="h-3/4 p-4 bg-gray-50 overflow-auto"></div>
+                <div class="py-10">
+                    <button id="btn-entry" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                    Set Entry Point
+                    </button>
+                    <button id="btn-dest" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                    Set Dest Point
+                    </button>
+                </div>
+            </div>
             <!-- Other components from the 3D Slicer UI... -->
         </div>
         

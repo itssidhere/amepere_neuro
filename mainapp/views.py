@@ -97,6 +97,18 @@ def run_3d_slicer(request):
         Seg_Stl_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__)), "seg_stl.py")
         Slicer_PATH = "/Applications/Slicer.app/Contents/MacOS/Slicer"
 
+        TEMP_FILE = OUTPUT_FILE.replace(".nii.gz", "_temp.nii.gz")
+        temp = nib.load(OUTPUT_FILE)
+        x_offset = - 0.5 * temp.header['pixdim'][1] * temp.header['dim'][1]
+        y_offset = - 0.5 * temp.header['pixdim'][2] * temp.header['dim'][2]
+        z_offset = - 0.5 * temp.header['pixdim'][3] * temp.header['dim'][3]
+        affine = np.array([[1, 0, 0, x_offset],
+                            [0, 1, 0, y_offset],
+                            [0, 0, 1, z_offset],
+                            [0, 0, 0, 1]])
+        temp.set_sform(affine)
+        nib.save(temp, TEMP_FILE)
+
         if os.path.exists(OUTPUT_FILE.replace(".nii.gz", "")):
             print('------------------ 3D Slicer already run ------------------')
             return JsonResponse({'status': 'success', 'message': '3D Slicer already run'})
