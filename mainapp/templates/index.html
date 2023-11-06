@@ -291,7 +291,17 @@
 
         function startRobot()
         {
-            console.log("Starting Robot")
+            fetch('sendModel', {
+                method: 'GET'
+            } ).then(response => {
+                if(response.ok){
+                    console.log('Robot started successfully')
+                }else{
+                    console.log('Error starting robot')
+                }
+            }).catch(error => {
+                console.log(error)
+            })
         }
 
          function load3dModel(){

@@ -12,11 +12,13 @@ channel_layer = get_channel_layer()
 sio = socketio.Server(cors_allowed_origins="*")
 app = socketio.WSGIApp(sio)
 
+sids = []
 
 @sio.event
 def connect(sid, environ):
     print("Client connected:", sid)
     message_data = "Welcome to the server!"
+    sids.append(sid)
     print(f"Sending message of type: {type(message_data)}")
     async_to_sync(channel_layer.group_send)(
         "message_group", {"type": "chat_message", "text": message_data}
@@ -32,6 +34,33 @@ def send_message(sid, data):
     sio.emit("message", dateToStr, sid)
     async_to_sync(channel_layer.group_send)(
         "message_group", {"type": "chat_message", "text": data}
+    )
+
+@sio.event
+def send_skull_message(sid, data):
+    print("Received skull message from", sid, ":", data)
+    # send current time to string
+    dateToStr = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    sio.emit("skull_message", dateToStr, sid)
+    async_to_sync(channel_layer.group_send)(
+        "skull_message_group", {"type": "chat_message", "text": data}
+        
+    )
+
+@sio.event
+def send_model_django(sid,data):
+    print("Received model from", sid, ":", data)
+    for sid in sids:
+        sio.emit("send_model", data, to=sid)
+
+@sio.event
+def send_needle_messsage(sid, data):
+    print("Received needle message from", sid, ":", data)
+    # send current time to string
+    dateToStr = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    sio.emit("needle_message", dateToStr, sid)
+    async_to_sync(channel_layer.group_send)(
+        "needle_message_group", {"type": "chat_message", "text": data}
     )
 
 

@@ -29,6 +29,7 @@ urlpatterns = [
     path("getModels/", views.get_models, name="getModels"),
     path("getNifti/", views.get_nifti, name="getNifti"),
     path("getStlFolder/", views.get_stl_folder, name="getStlFolder"),
+    path("sendModel/", views.send_model, name="sendModel"),
 ]
 
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

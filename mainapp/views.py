@@ -6,6 +6,10 @@ from django.http import JsonResponse
 from . import mri_seg
 import json
 import datetime
+import socketio
+
+sio = socketio.Client()
+sio.connect("http://127.0.0.1:8001")
 
 
 def index(request):
@@ -79,7 +83,7 @@ def run_3d_slicer(request):
         path = model.file.path
         OUTPUT_FILE = path.replace(".nii.gz", "_synthseg.nii.gz")
         Seg_Stl_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__)), "seg_stl.py")
-        Slicer_PATH = "/Applications/Slicer.app/Contents/MacOS/Slicer"
+        Slicer_PATH = "/home/sid/Downloads/Slicer-5.4.0-linux-amd64/Slicer"
 
         if os.path.exists(OUTPUT_FILE.replace(".nii.gz", "")):
             print('------------------ 3D Slicer already run ------------------')
@@ -108,6 +112,14 @@ def get_nifti(request):
     model = MriFile.objects.get(name=model_name)
     path = "media/" + model.file.name
     return JsonResponse({"success": True, "file": path})
+
+
+def send_model(request):
+    print("Sending model")
+    model_path = "/home/sid/Documents/projects/ampere_neuro/media/mri_files/PATIENT_05_synthseg"
+    
+    sio.emit("send_model_django", model_path)
+    return JsonResponse({"success": True, "file": model_path})
 
 
 def get_stl_folder(request):

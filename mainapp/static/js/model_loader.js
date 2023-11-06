@@ -33,8 +33,24 @@ export function visability3DToggle(id, visability) {
 }
 
 
-export function chai3d() {
-    const socket = new WebSocket('ws://' + window.location.host + '/ws/message/');
+export function getNeedlePosition() {
+    const socket = new WebSocket('ws://' + window.location.host + '/ws/needle_message/');
+    socket.onmessage = function (e) {
+        const data = JSON.parse(e.data);
+        // Split data.message using ',' and convert each element to a float
+        const coords = data.message.split(",").map(item => parseFloat(item, 10));
+        const newPoint = new THREE.Vector3(...coords);
+        // Check if points array is empty or new point is different from the last point
+        if (points.length === 0 || !newPoint.equals(points[points.length - 1])) {
+            points.push(newPoint);
+            geometry.setFromPoints(points);
+            geometry.NeedsUpdate = true;
+        }
+    }
+}
+
+export function getSkullOrientation() {
+    const socket = new WebSocket('ws://' + window.location.host + '/ws/skull_message/');
     socket.onmessage = function (e) {
         const data = JSON.parse(e.data);
         // console.log(data.message);
@@ -58,7 +74,6 @@ export function chai3d() {
         // Adjust camera if needed, or add more visualization controls/logic
     };
 }
-
 function render() {
     requestAnimationFrame(render);
     renderer.render(scene, camera);
@@ -70,7 +85,8 @@ export default function loadSTLModel(stlFiles) {
     }
 
 
-    chai3d();
+    getNeedlePosition();
+    getSkullOrientation();
 
 
     container.innerHTML = '';
@@ -98,6 +114,7 @@ export default function loadSTLModel(stlFiles) {
     const loader = new STLLoader();
 
     let count = 0;
+    console.log(stlFiles)
     stlFiles.forEach(fileName => {
         loader.load(
             `${fileName}`,
