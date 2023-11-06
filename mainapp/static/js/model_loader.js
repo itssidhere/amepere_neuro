@@ -19,6 +19,9 @@ const pointGeometry = new THREE.SphereGeometry(3, 32, 32);
 const pointMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
 const pointMesh = new THREE.Mesh(pointGeometry, pointMaterial);
 
+const lineGeometry = new THREE.BufferGeometry();
+const lineMaterial = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 3 });
+const lineMesh = new THREE.Line(lineGeometry, lineMaterial);
 
 let colors = {};
 let names = {};
@@ -35,6 +38,15 @@ export function setPointVisability(visability) {
 
 export function updatePointObject(newPos) {
     pointMesh.position.set(newPos[0], newPos[1], newPos[2]);
+}
+
+export function updateLine(entryPos, destPos) {
+    const points = [];
+    points.push(entryPos);
+    points.push(destPos);
+    lineGeometry.setFromPoints(points);
+    lineGeometry.NeedsUpdate = true;
+    lineMesh.visible = true;
 }
 
 export function visability3DToggle(id, visability) {
@@ -122,6 +134,8 @@ export default function loadSTLModel(stlFiles) {
     scene.add(new THREE.AxesHelper(100));
     scene.add(pointMesh);
     pointMesh.visible = false;
+    scene.add(lineMesh);
+    lineMesh.visible = false;
 
     const material = new THREE.LineBasicMaterial({ color: 0xff0000 });
     const line = new THREE.Line(geometry, material);

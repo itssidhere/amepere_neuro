@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'orbit-control';
-import { visability3DToggle, setPointVisability, updatePointObject } from './model_loader.js'
+import { visability3DToggle, setPointVisability, updatePointObject, updateLine } from './model_loader.js'
 
 let colors = {};
 let names = {};
@@ -11,6 +11,11 @@ fetch('/static/json/config.json')
     .then((json) => { 
         colors = json['colors']; 
         names = json['names']; 
+});
+
+fetch('/static/json/visabilities.json', { cache: "no-cache"})
+    .then((response) => response.json())
+    .then((json) => { 
         visabilities = json['visabilities'];
 });
 
@@ -592,6 +597,43 @@ function visabilityToggle(id) {
     visability3DToggle(id, visabilities[id]);
     refreshSegmentationList(id, visabilities[id]);
 
+    saveVisability(id, visabilities[id]);
+}
+
+function saveVisability(id, visability) {
+    fetch('/saveVisabilities/', {
+        method: 'POST',
+        body: JSON.stringify({
+            newID: id,
+            newVis: visability
+        }),
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken'),
+        },
+    })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Success:', data);
+        })
+        .catch((error) => {
+            console.error('Error:', error);
+        });
+}
+
+function getCookie(name){
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== ''){
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++){
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')){
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+
 }
 
 export function getVisability(id) {
@@ -613,6 +655,7 @@ function setDestPoint() {
     setPoint(document.getElementById('btn-dest'));
     if (!isSelectingPoint) {
         destPoint.copy(currPoint);
+        updateLine(entryPoint, destPoint);
         console.log(entryPoint, destPoint);
     }
 }

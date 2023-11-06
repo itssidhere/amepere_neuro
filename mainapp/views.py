@@ -9,6 +9,7 @@ import datetime
 import nibabel as nib
 import numpy as np
 import socketio
+import json
 
 sio = socketio.Client()
 # sio.connect("http://127.0.0.1:8001")
@@ -158,3 +159,16 @@ def get_stl_folder(request):
     stl_files = [os.path.join(MEDIA_LOCAL, f) for f in os.listdir(STL_DIR) if f.endswith(".stl")]
 
     return JsonResponse({"success": True, "files": stl_files})
+
+def save_visabilities(request):
+    id = json.loads(request.body)['newID']
+    visability = json.loads(request.body)['newVis']
+    JSON_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__)), "static", "json", "visabilities.json")
+    with open(JSON_PATH, 'r+') as f:
+        data = json.load(f)
+        data['visabilities'][id] = visability
+        f.seek(0)
+        json.dump(data, f, indent=4)
+        f.truncate()
+    
+    return JsonResponse({"success": True})
