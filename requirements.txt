@@ -5,6 +5,7 @@ nibabel==5.0.1
 matplotlib==3.6.2
 scipy==1.11.3
 protobuf==4.24.4
+nibabel==5.0.1
 
 # Other Requirements
 # Django==4.2.6
@@ -12,6 +13,7 @@ protobuf==4.24.4
 # redis==5.0.1
 # daphne==4.0.0
 # channels==4.0.0
+# eventlet==0.33.3
 
 apturl==0.5.2
 asgiref==3.7.2
