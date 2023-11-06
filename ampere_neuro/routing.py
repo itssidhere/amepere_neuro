@@ -6,7 +6,15 @@ from django.core.asgi import get_asgi_application
 websocket_urlpatterns = [
     path(
         "ws/message/", consumers.MessageConsumer.as_asgi()
-    ),  # Adjust path and consumer name
+    ), 
+
+    path(
+        'ws/skull_message/', consumers.SkullMessageConsumer.as_asgi()
+    ),
+
+    path(
+        'ws/needle_message/', consumers.NeedleMessageConsumer.as_asgi()
+    )
 ]
 
 application = ProtocolTypeRouter(
