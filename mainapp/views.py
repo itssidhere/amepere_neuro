@@ -11,7 +11,7 @@ import numpy as np
 import socketio
 
 sio = socketio.Client()
-sio.connect("http://127.0.0.1:8001")
+# sio.connect("http://127.0.0.1:8001")
 
 
 def index(request):

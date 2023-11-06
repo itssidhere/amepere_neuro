@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'orbit-control';
-import { visability3DToggle, updatePointObject } from './model_loader.js'
-
+import { visability3DToggle, setPointVisability, updatePointObject } from './model_loader.js'
 
 let colors = {};
 let names = {};
@@ -33,14 +32,21 @@ const segmentation_textures = [];
 
 const pointer = new THREE.Vector2();
 const raycaster = new THREE.Raycaster();
-const point = new THREE.Vector3();
-
 const raycastPoints = [];
+const currPoint = new THREE.Vector3();
+
+const entryPoint = new THREE.Vector3();
+const destPoint = new THREE.Vector3();
 
 let count = 10;
+let isSelectingPoint = false;
+
+document.getElementById('btn-entry').addEventListener('click', setEntryPoint);
+document.getElementById('btn-dest').addEventListener('click', setDestPoint);
 
 function getMousePos(event) 
 {
+    if (!isSelectingPoint) return;
     if (count > 0) {
         count--;
         return;
@@ -58,28 +64,28 @@ function getMousePos(event)
     const intersects = raycaster.intersectObject(meshes[containerID]);
     if (intersects.length === 0) return;
 
-    point.copy(intersects[0].point);
+    currPoint.copy(intersects[0].point);
 
     switch (containerID) {
         case 0:
-            point.y = Math.round(sliders[0].value - (header.dims[3] - 1) / 2);
+            currPoint.y = Math.round(sliders[0].value - (header.dims[3] - 1) / 2);
             break;
         case 1:
-            point.z = Math.round(sliders[1].value - (header.dims[2] - 1) / 2);
+            currPoint.z = Math.round(sliders[1].value - (header.dims[2] - 1) / 2);
             break;
         case 2:
-            point.x = Math.round(sliders[2].value - (header.dims[1] - 1) / 2);
+            currPoint.x = Math.round(sliders[2].value - (header.dims[1] - 1) / 2);
             break;
     }
 
     const newSliderValues =
     [
-        Math.round((header.dims[3] - 1) / 2 + point.y),
-        Math.round((header.dims[2] - 1) / 2 + point.z),
-        Math.round((header.dims[1] - 1) / 2 + point.x)
+        Math.round((header.dims[3] - 1) / 2 + currPoint.y),
+        Math.round((header.dims[2] - 1) / 2 + currPoint.z),
+        Math.round((header.dims[1] - 1) / 2 + currPoint.x)
     ];
 
-    const pointFloat = new Float32Array(point);
+    const pointFloat = new Float32Array(currPoint);
     // console.log(pointFloat);
     for (let i = 0; i < 3; i++) {
         if (sliders[i].value !== newSliderValues[i] && i !== containerID) {
@@ -330,6 +336,7 @@ function readNIFTI(data) {
             raycastPoints.push(new THREE.Mesh(raycastPointGeometry, raycastPointMaterial));
             raycastPoints[i].layers.set(i + 1);
             scene.add(raycastPoints[i]);
+            raycastPoints[i].visible = false;
 
             // cameras[i].position.set(header.qoffset_x, 0, header.qoffset_z);
 
@@ -589,4 +596,52 @@ function visabilityToggle(id) {
 
 export function getVisability(id) {
     return visabilities[id];
+}
+
+function setEntryPoint() {
+    setPoint(document.getElementById('btn-entry'));
+    if (!isSelectingPoint) {
+        entryPoint.copy(currPoint);
+    }
+}
+
+function setDestPoint() {
+    if (entryPoint.equals(destPoint)) {
+        alert('Please set an entry point first.');
+        return;
+    }
+    setPoint(document.getElementById('btn-dest'));
+    if (!isSelectingPoint) {
+        destPoint.copy(currPoint);
+        console.log(entryPoint, destPoint);
+    }
+}
+
+function setPoint(btn)
+{
+    isSelectingPoint = !isSelectingPoint;
+    setPointVisability(isSelectingPoint);
+    // console.log(btn)
+    
+    if (isSelectingPoint) {
+        count = 10;
+        currPoint.set(0, 0, 0);
+        updatePointObject(currPoint);
+        btn.classList.remove('bg-blue-500')
+        btn.classList.remove('hover:bg-blue-700');
+        btn.classList.add('bg-red-500');
+        btn.classList.add('hover:bg-red-700');
+        btn.innerText = btn.innerText.replace('Set', 'Save');
+    } else {
+        btn.classList.remove('bg-red-500');
+        btn.classList.remove('hover:bg-red-700');
+        btn.classList.add('bg-blue-500')
+        btn.classList.add('hover:bg-blue-700');
+        btn.innerText = btn.innerText.replace('Save', 'Set');
+    }
+
+    for (let i = 0; i < 3; i++) {
+        raycastPoints[i].visible = isSelectingPoint;
+        raycastPoints[i].position.set(0, 0, 0);
+    }
 }

@@ -29,6 +29,10 @@ fetch('/static/json/config.json')
     .then((json) => { colors = json['colors']; names = json['names']; });
 
 
+export function setPointVisability(visability) {
+    pointMesh.visible = visability;
+}
+
 export function updatePointObject(newPos) {
     pointMesh.position.set(newPos[0], newPos[1], newPos[2]);
 }
@@ -117,6 +121,7 @@ export default function loadSTLModel(stlFiles) {
 
     scene.add(new THREE.AxesHelper(100));
     scene.add(pointMesh);
+    pointMesh.visible = false;
 
     const material = new THREE.LineBasicMaterial({ color: 0xff0000 });
     const line = new THREE.Line(geometry, material);
@@ -124,7 +129,7 @@ export default function loadSTLModel(stlFiles) {
     const loader = new STLLoader();
 
     let count = 0;
-    console.log(stlFiles)
+    // console.log(stlFiles)
     stlFiles.forEach(fileName => {
         loader.load(
             `${fileName}`,
