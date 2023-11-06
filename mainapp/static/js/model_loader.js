@@ -2,6 +2,9 @@ import * as THREE from 'three';
 import { STLLoader } from 'stl-loader';
 import { OrbitControls } from 'orbit-control';
 import { getVisability } from './nifti_loader.js';
+import { LineGeometry } from 'line-geometry';
+import { LineMaterial } from 'line-material';
+import { Line2 } from 'line2';
 
 const container = document.getElementById('threejs-container');
 const scene = new THREE.Scene();
@@ -16,12 +19,12 @@ const group = new THREE.Group();
 const controls = new OrbitControls(camera, renderer.domElement);
 
 const pointGeometry = new THREE.SphereGeometry(3, 32, 32);
-const pointMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+const pointMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
 const pointMesh = new THREE.Mesh(pointGeometry, pointMaterial);
 
-const lineGeometry = new THREE.BufferGeometry();
-const lineMaterial = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 3 });
-const lineMesh = new THREE.Line(lineGeometry, lineMaterial);
+const lineGeometry = new LineGeometry();
+const lineMaterial = new LineMaterial({ color: 0x00ff00, linewidth: 0.01 });
+const lineMesh = new Line2(lineGeometry, lineMaterial);
 
 let colors = {};
 let names = {};
@@ -40,11 +43,8 @@ export function updatePointObject(newPos) {
     pointMesh.position.set(newPos[0], newPos[1], newPos[2]);
 }
 
-export function updateLine(entryPos, destPos) {
-    const points = [];
-    points.push(entryPos);
-    points.push(destPos);
-    lineGeometry.setFromPoints(points);
+export function update3DLine(points) {
+    lineGeometry.setPositions(points);
     lineGeometry.NeedsUpdate = true;
     lineMesh.visible = true;
 }
@@ -131,7 +131,7 @@ export default function loadSTLModel(stlFiles) {
 
     }
 
-    scene.add(new THREE.AxesHelper(100));
+    // scene.add(new THREE.AxesHelper(100));
     scene.add(pointMesh);
     pointMesh.visible = false;
     scene.add(lineMesh);

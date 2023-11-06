@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'orbit-control';
-import { visability3DToggle, setPointVisability, updatePointObject, updateLine } from './model_loader.js'
+import { visability3DToggle, setPointVisability, updatePointObject, update3DLine } from './model_loader.js'
+import { LineGeometry } from 'line-geometry';
+import { LineMaterial } from 'line-material';
+import { Line2 } from 'line2';
 
 let colors = {};
 let names = {};
@@ -41,13 +44,17 @@ const raycastPoints = [];
 const currPoint = new THREE.Vector3();
 
 const entryPoint = new THREE.Vector3();
-const destPoint = new THREE.Vector3();
+const targetPoint = new THREE.Vector3();
+
+const lineGeometry = new LineGeometry();
+const lineMaterial = new LineMaterial({ color: 0x00ff00, linewidth: 0.01 });
+const lineMesh = new Line2(lineGeometry, lineMaterial);
 
 let count = 10;
 let isSelectingPoint = false;
 
 document.getElementById('btn-entry').addEventListener('click', setEntryPoint);
-document.getElementById('btn-dest').addEventListener('click', setDestPoint);
+document.getElementById('btn-target').addEventListener('click', setTargetPoint);
 
 function getMousePos(event) 
 {
@@ -112,6 +119,17 @@ function getMousePos(event)
         }
     }
     updatePointObject(pointFloat);
+}
+
+function updateLine(entry, target) {
+    const points = [];
+    points.push(entry.x, entry.y, entry.z);
+    points.push(target.x, target.y, target.z);
+    lineGeometry.setPositions(points);
+    lineGeometry.NeedsUpdate = true;
+    lineMesh.visible = true;
+
+    update3DLine(points);
 }
 
 var isMouseDown = false; 
@@ -313,7 +331,11 @@ function readNIFTI(data) {
 
         normFactor = 255 / max;
 
-        scene.add(new THREE.AxesHelper(100));
+        // scene.add(new THREE.AxesHelper(100));
+        scene.add(lineMesh);
+        lineMesh.visible = false;
+        lineMesh.renderOrder = 0 || 999
+        lineMesh.material.depthTest = false 
 
         for (let i = 0; i <= 2; i++) {
             let width, height;
@@ -337,7 +359,7 @@ function readNIFTI(data) {
             segmentation_mesh.layers.set(i + 1);
 
             const raycastPointGeometry = new THREE.SphereGeometry(3, 32, 32);
-            const raycastPointMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+            const raycastPointMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
             raycastPoints.push(new THREE.Mesh(raycastPointGeometry, raycastPointMaterial));
             raycastPoints[i].layers.set(i + 1);
             scene.add(raycastPoints[i]);
@@ -647,16 +669,15 @@ function setEntryPoint() {
     }
 }
 
-function setDestPoint() {
-    if (entryPoint.equals(destPoint)) {
+function setTargetPoint() {
+    if (entryPoint.equals(targetPoint)) {
         alert('Please set an entry point first.');
         return;
     }
-    setPoint(document.getElementById('btn-dest'));
+    setPoint(document.getElementById('btn-target'));
     if (!isSelectingPoint) {
-        destPoint.copy(currPoint);
-        updateLine(entryPoint, destPoint);
-        console.log(entryPoint, destPoint);
+        targetPoint.copy(currPoint);
+        updateLine(entryPoint, targetPoint);
     }
 }
 
@@ -672,12 +693,12 @@ function setPoint(btn)
         updatePointObject(currPoint);
         btn.classList.remove('bg-blue-500')
         btn.classList.remove('hover:bg-blue-700');
-        btn.classList.add('bg-red-500');
-        btn.classList.add('hover:bg-red-700');
+        btn.classList.add('bg-green-500');
+        btn.classList.add('hover:bg-green-700');
         btn.innerText = btn.innerText.replace('Set', 'Save');
     } else {
-        btn.classList.remove('bg-red-500');
-        btn.classList.remove('hover:bg-red-700');
+        btn.classList.remove('bg-green-500');
+        btn.classList.remove('hover:bg-green-700');
         btn.classList.add('bg-blue-500')
         btn.classList.add('hover:bg-blue-700');
         btn.innerText = btn.innerText.replace('Save', 'Set');
