@@ -7,6 +7,9 @@ from . import mri_seg
 import json
 import datetime
 import socketio
+import subprocess
+from getpass import getpass
+
 
 sio = socketio.Client()
 sio.connect("http://127.0.0.1:8001")
@@ -117,8 +120,14 @@ def get_nifti(request):
 def send_model(request):
     print("Sending model")
     model_path = "/home/sid/Documents/projects/ampere_neuro/media/mri_files/PATIENT_05_synthseg"
-    
-    sio.emit("send_model_django", model_path)
+    evdSIM_path = "/home/sid/Documents/build-evdSIM-Desktop_Qt_5_15_2_GCC_64bit-Release/evdSIM"
+    command = f"sudo -S {evdSIM_path} {model_path}".split()
+    subprocess.run(
+    command, stdout=subprocess.PIPE, input=getpass("password: "), encoding="ascii",
+)
+   
+
+    # sio.emit("send_model_django", model_path)
     return JsonResponse({"success": True, "file": model_path})
 
 
