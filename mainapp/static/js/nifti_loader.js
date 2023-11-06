@@ -46,9 +46,7 @@ const currPoint = new THREE.Vector3();
 const entryPoint = new THREE.Vector3();
 const targetPoint = new THREE.Vector3();
 
-const lineGeometry = new LineGeometry();
-const lineMaterial = new LineMaterial({ color: 0x00ff00, linewidth: 0.01 });
-const lineMesh = new Line2(lineGeometry, lineMaterial);
+const lineMeshes = [];
 
 let count = 10;
 let isSelectingPoint = false;
@@ -125,9 +123,27 @@ function updateLine(entry, target) {
     const points = [];
     points.push(entry.x, entry.y, entry.z);
     points.push(target.x, target.y, target.z);
-    lineGeometry.setPositions(points);
-    lineGeometry.NeedsUpdate = true;
-    lineMesh.visible = true;
+
+    for (let i = 0; i < 3; i++) {
+        let tempPoints = [];
+        switch (i) {
+            case 0:
+                tempPoints.push(entry.x, 0, entry.z);
+                tempPoints.push(target.x, 0, target.z);
+                break;
+            case 1:
+                tempPoints.push(entry.x, entry.y, 0);
+                tempPoints.push(target.x, target.y, 0);
+                break;
+            case 2:
+                tempPoints.push(0, entry.y, entry.z);
+                tempPoints.push(0, target.y, target.z);
+                break;
+        }
+        lineMeshes[i].geometry.setPositions(tempPoints);
+        lineMeshes[i].geometry.NeedsUpdate = true;
+        lineMeshes[i].visible = true;
+    }
 
     update3DLine(points);
 }
@@ -332,10 +348,6 @@ function readNIFTI(data) {
         normFactor = 255 / max;
 
         // scene.add(new THREE.AxesHelper(100));
-        scene.add(lineMesh);
-        lineMesh.visible = false;
-        lineMesh.renderOrder = 0 || 999
-        lineMesh.material.depthTest = false 
 
         for (let i = 0; i <= 2; i++) {
             let width, height;
@@ -362,8 +374,17 @@ function readNIFTI(data) {
             const raycastPointMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
             raycastPoints.push(new THREE.Mesh(raycastPointGeometry, raycastPointMaterial));
             raycastPoints[i].layers.set(i + 1);
-            scene.add(raycastPoints[i]);
             raycastPoints[i].visible = false;
+            scene.add(raycastPoints[i]);
+
+            const lineGeometry = new LineGeometry();
+            const lineMaterial = new LineMaterial({ color: 0x00ff00, linewidth: 0.01 });
+            lineMeshes.push(new Line2(lineGeometry, lineMaterial));
+            lineMeshes[i].layers.set(i + 1);
+            lineMeshes[i].visible = false;
+            scene.add(lineMeshes[i]);
+            lineMeshes[i].renderOrder = 0 || 999
+            lineMeshes[i].material.depthTest = false
 
             // cameras[i].position.set(header.qoffset_x, 0, header.qoffset_z);
 
@@ -663,49 +684,68 @@ export function getVisability(id) {
 }
 
 function setEntryPoint() {
-    setPoint(document.getElementById('btn-entry'));
-    if (!isSelectingPoint) {
-        entryPoint.copy(currPoint);
-    }
+    setPoint(true);
 }
 
 function setTargetPoint() {
-    if (entryPoint.equals(targetPoint)) {
-        alert('Please set an entry point first.');
-        return;
-    }
-    setPoint(document.getElementById('btn-target'));
-    if (!isSelectingPoint) {
-        targetPoint.copy(currPoint);
-        updateLine(entryPoint, targetPoint);
-    }
+    setPoint(false);
 }
 
-function setPoint(btn)
+function setPoint(isEntry)
 {
+    const btn = isEntry ? document.getElementById('btn-entry') : document.getElementById('btn-target');
     isSelectingPoint = !isSelectingPoint;
     setPointVisability(isSelectingPoint);
-    // console.log(btn)
+    for (let i = 0; i < 3; i++) {
+        raycastPoints[i].visible = isSelectingPoint;
+    }
     
     if (isSelectingPoint) {
-        count = 10;
-        currPoint.set(0, 0, 0);
-        updatePointObject(currPoint);
         btn.classList.remove('bg-blue-500')
         btn.classList.remove('hover:bg-blue-700');
         btn.classList.add('bg-green-500');
         btn.classList.add('hover:bg-green-700');
         btn.innerText = btn.innerText.replace('Set', 'Save');
+
+        if (isEntry) {
+            currPoint.set(entryPoint.x, entryPoint.y, entryPoint.z);
+        } else {
+            currPoint.set(targetPoint.x, targetPoint.y, targetPoint.z);
+        }
+
+        updatePointObject(currPoint);
+        for (let i = 0; i < 3; i++) {
+            raycastPoints[i].position.set(currPoint.x, currPoint.y, currPoint.z);
+            switch (i) {
+                case 0:
+                    raycastPoints[i].position.y = 0;
+                    break;
+                case 1:
+                    raycastPoints[i].position.z = 0;
+                    break;
+                case 2:
+                    raycastPoints[i].position.x = 0;
+                    break;
+            }
+        }
+
     } else {
         btn.classList.remove('bg-green-500');
         btn.classList.remove('hover:bg-green-700');
         btn.classList.add('bg-blue-500')
         btn.classList.add('hover:bg-blue-700');
         btn.innerText = btn.innerText.replace('Save', 'Set');
-    }
 
-    for (let i = 0; i < 3; i++) {
-        raycastPoints[i].visible = isSelectingPoint;
-        raycastPoints[i].position.set(0, 0, 0);
-    }
+        if (isEntry) {
+            entryPoint.copy(currPoint);
+            if (targetPoint.x !== 0 || targetPoint.y !== 0 || targetPoint.z !== 0) {
+                updateLine(entryPoint, targetPoint);
+            }
+        } else {
+            targetPoint.copy(currPoint);
+            if (entryPoint.x !== 0 || entryPoint.y !== 0 || entryPoint.z !== 0) {
+                updateLine(entryPoint, targetPoint);
+            }
+        }
+    }    
 }
