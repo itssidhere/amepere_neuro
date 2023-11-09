@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'orbit-control';
-import { visability3DToggle, setPointVisability, updatePointObject } from './model_loader.js'
+import { visability3DToggle, setPointVisability, updatePointObject, update3DLine } from './model_loader.js'
+import { LineGeometry } from 'line-geometry';
+import { LineMaterial } from 'line-material';
+import { Line2 } from 'line2';
 
 let colors = {};
 let names = {};
@@ -11,6 +14,11 @@ fetch('/static/json/config.json')
     .then((json) => { 
         colors = json['colors']; 
         names = json['names']; 
+});
+
+fetch('/static/json/visabilities.json', { cache: "no-cache"})
+    .then((response) => response.json())
+    .then((json) => { 
         visabilities = json['visabilities'];
 });
 
@@ -36,13 +44,15 @@ const raycastPoints = [];
 const currPoint = new THREE.Vector3();
 
 const entryPoint = new THREE.Vector3();
-const destPoint = new THREE.Vector3();
+const targetPoint = new THREE.Vector3();
+
+const lineMeshes = [];
 
 let count = 10;
 let isSelectingPoint = false;
 
 document.getElementById('btn-entry').addEventListener('click', setEntryPoint);
-document.getElementById('btn-dest').addEventListener('click', setDestPoint);
+document.getElementById('btn-target').addEventListener('click', setTargetPoint);
 
 function getMousePos(event) 
 {
@@ -107,6 +117,35 @@ function getMousePos(event)
         }
     }
     updatePointObject(pointFloat);
+}
+
+function updateLine(entry, target) {
+    const points = [];
+    points.push(entry.x, entry.y, entry.z);
+    points.push(target.x, target.y, target.z);
+
+    for (let i = 0; i < 3; i++) {
+        let tempPoints = [];
+        switch (i) {
+            case 0:
+                tempPoints.push(entry.x, 0, entry.z);
+                tempPoints.push(target.x, 0, target.z);
+                break;
+            case 1:
+                tempPoints.push(entry.x, entry.y, 0);
+                tempPoints.push(target.x, target.y, 0);
+                break;
+            case 2:
+                tempPoints.push(0, entry.y, entry.z);
+                tempPoints.push(0, target.y, target.z);
+                break;
+        }
+        lineMeshes[i].geometry.setPositions(tempPoints);
+        lineMeshes[i].geometry.NeedsUpdate = true;
+        lineMeshes[i].visible = true;
+    }
+
+    update3DLine(points);
 }
 
 var isMouseDown = false; 
@@ -308,7 +347,7 @@ function readNIFTI(data) {
 
         normFactor = 255 / max;
 
-        scene.add(new THREE.AxesHelper(100));
+        // scene.add(new THREE.AxesHelper(100));
 
         for (let i = 0; i <= 2; i++) {
             let width, height;
@@ -332,11 +371,20 @@ function readNIFTI(data) {
             segmentation_mesh.layers.set(i + 1);
 
             const raycastPointGeometry = new THREE.SphereGeometry(3, 32, 32);
-            const raycastPointMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+            const raycastPointMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
             raycastPoints.push(new THREE.Mesh(raycastPointGeometry, raycastPointMaterial));
             raycastPoints[i].layers.set(i + 1);
-            scene.add(raycastPoints[i]);
             raycastPoints[i].visible = false;
+            scene.add(raycastPoints[i]);
+
+            const lineGeometry = new LineGeometry();
+            const lineMaterial = new LineMaterial({ color: 0x00ff00, linewidth: 0.01 });
+            lineMeshes.push(new Line2(lineGeometry, lineMaterial));
+            lineMeshes[i].layers.set(i + 1);
+            lineMeshes[i].visible = false;
+            scene.add(lineMeshes[i]);
+            lineMeshes[i].renderOrder = 0 || 999
+            lineMeshes[i].material.depthTest = false
 
             // cameras[i].position.set(header.qoffset_x, 0, header.qoffset_z);
 
@@ -592,6 +640,43 @@ function visabilityToggle(id) {
     visability3DToggle(id, visabilities[id]);
     refreshSegmentationList(id, visabilities[id]);
 
+    saveVisability(id, visabilities[id]);
+}
+
+function saveVisability(id, visability) {
+    fetch('/saveVisabilities/', {
+        method: 'POST',
+        body: JSON.stringify({
+            newID: id,
+            newVis: visability
+        }),
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken'),
+        },
+    })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Success:', data);
+        })
+        .catch((error) => {
+            console.error('Error:', error);
+        });
+}
+
+function getCookie(name){
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== ''){
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++){
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')){
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+
 }
 
 export function getVisability(id) {
@@ -599,49 +684,68 @@ export function getVisability(id) {
 }
 
 function setEntryPoint() {
-    setPoint(document.getElementById('btn-entry'));
-    if (!isSelectingPoint) {
-        entryPoint.copy(currPoint);
-    }
+    setPoint(true);
 }
 
-function setDestPoint() {
-    if (entryPoint.equals(destPoint)) {
-        alert('Please set an entry point first.');
-        return;
-    }
-    setPoint(document.getElementById('btn-dest'));
-    if (!isSelectingPoint) {
-        destPoint.copy(currPoint);
-        console.log(entryPoint, destPoint);
-    }
+function setTargetPoint() {
+    setPoint(false);
 }
 
-function setPoint(btn)
+function setPoint(isEntry)
 {
+    const btn = isEntry ? document.getElementById('btn-entry') : document.getElementById('btn-target');
     isSelectingPoint = !isSelectingPoint;
     setPointVisability(isSelectingPoint);
-    // console.log(btn)
+    for (let i = 0; i < 3; i++) {
+        raycastPoints[i].visible = isSelectingPoint;
+    }
     
     if (isSelectingPoint) {
-        count = 10;
-        currPoint.set(0, 0, 0);
-        updatePointObject(currPoint);
         btn.classList.remove('bg-blue-500')
         btn.classList.remove('hover:bg-blue-700');
-        btn.classList.add('bg-red-500');
-        btn.classList.add('hover:bg-red-700');
+        btn.classList.add('bg-green-500');
+        btn.classList.add('hover:bg-green-700');
         btn.innerText = btn.innerText.replace('Set', 'Save');
+
+        if (isEntry) {
+            currPoint.set(entryPoint.x, entryPoint.y, entryPoint.z);
+        } else {
+            currPoint.set(targetPoint.x, targetPoint.y, targetPoint.z);
+        }
+
+        updatePointObject(currPoint);
+        for (let i = 0; i < 3; i++) {
+            raycastPoints[i].position.set(currPoint.x, currPoint.y, currPoint.z);
+            switch (i) {
+                case 0:
+                    raycastPoints[i].position.y = 0;
+                    break;
+                case 1:
+                    raycastPoints[i].position.z = 0;
+                    break;
+                case 2:
+                    raycastPoints[i].position.x = 0;
+                    break;
+            }
+        }
+
     } else {
-        btn.classList.remove('bg-red-500');
-        btn.classList.remove('hover:bg-red-700');
+        btn.classList.remove('bg-green-500');
+        btn.classList.remove('hover:bg-green-700');
         btn.classList.add('bg-blue-500')
         btn.classList.add('hover:bg-blue-700');
         btn.innerText = btn.innerText.replace('Save', 'Set');
-    }
 
-    for (let i = 0; i < 3; i++) {
-        raycastPoints[i].visible = isSelectingPoint;
-        raycastPoints[i].position.set(0, 0, 0);
-    }
+        if (isEntry) {
+            entryPoint.copy(currPoint);
+            if (targetPoint.x !== 0 || targetPoint.y !== 0 || targetPoint.z !== 0) {
+                updateLine(entryPoint, targetPoint);
+            }
+        } else {
+            targetPoint.copy(currPoint);
+            if (entryPoint.x !== 0 || entryPoint.y !== 0 || entryPoint.z !== 0) {
+                updateLine(entryPoint, targetPoint);
+            }
+        }
+    }    
 }

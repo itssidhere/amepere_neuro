@@ -53,6 +53,7 @@ def SegmentMRI(mri_path, output_path):
     print('\n' + version + '\n')
 
     # enforce CPU processing if necessary
+    args['cpu'] = True
     if args['cpu']:
         print('using CPU, hiding all CUDA_VISIBLE_DEVICES')
         os.environ['CUDA_VISIBLE_DEVICES'] = '-1'

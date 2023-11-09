@@ -2,11 +2,21 @@ import * as THREE from 'three';
 import { STLLoader } from 'stl-loader';
 import { OrbitControls } from 'orbit-control';
 import { getVisability } from './nifti_loader.js';
+import { LineGeometry } from 'line-geometry';
+import { LineMaterial } from 'line-material';
+import { Line2 } from 'line2';
+
+const ballJointToSkull = new THREE.Vector3(0.08778, 0.00576, 0.04068);
+ballJointToSkull.multiplyScalar(1000);
+
+const originToBallJoint = new THREE.Vector3(0.39, 0.0, 0.004);
+originToBallJoint.multiplyScalar(1000);
 
 const container = document.getElementById('threejs-container');
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
-camera.position.z = 300;
+camera.position.x = originToBallJoint.x / 2;
+camera.position.z = 1000;
 const geometry = new THREE.BufferGeometry();
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -16,9 +26,12 @@ const group = new THREE.Group();
 const controls = new OrbitControls(camera, renderer.domElement);
 
 const pointGeometry = new THREE.SphereGeometry(3, 32, 32);
-const pointMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+const pointMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
 const pointMesh = new THREE.Mesh(pointGeometry, pointMaterial);
 
+const lineGeometry = new LineGeometry();
+const lineMaterial = new LineMaterial({ color: 0x00ff00, linewidth: 0.01 });
+const lineMesh = new Line2(lineGeometry, lineMaterial);
 
 let colors = {};
 let names = {};
@@ -35,6 +48,12 @@ export function setPointVisability(visability) {
 
 export function updatePointObject(newPos) {
     pointMesh.position.set(newPos[0], newPos[1], newPos[2]);
+}
+
+export function update3DLine(points) {
+    lineGeometry.setPositions(points);
+    lineGeometry.NeedsUpdate = true;
+    lineMesh.visible = true;
 }
 
 export function visability3DToggle(id, visability) {
@@ -92,6 +111,12 @@ function render() {
     renderer.render(scene, camera);
 }
 
+function rotateObjectAroundAxisQuaternion(object, axis, radians) {
+    const quaternion = new THREE.Quaternion();
+    quaternion.setFromAxisAngle(axis, radians);
+    object.applyQuaternion(quaternion);
+}
+
 export default function loadSTLModel(stlFiles) {
     while (scene.children.length > 0) {
         scene.remove(scene.children[0]);
@@ -119,9 +144,22 @@ export default function loadSTLModel(stlFiles) {
 
     }
 
+    const stlGroup = new THREE.Group();
+    const referenceGroup = new THREE.Group();
+    const pivot = new THREE.Group();
+    
+    pivot.position.set(originToBallJoint.x, originToBallJoint.y, originToBallJoint.z);
+    group.position.set(ballJointToSkull.x, ballJointToSkull.y, ballJointToSkull.z);
+    pivot.add(group);
+    
+    group.add(referenceGroup);
+    group.add(stlGroup);
+
     scene.add(new THREE.AxesHelper(100));
-    scene.add(pointMesh);
+    referenceGroup.add(pointMesh);
     pointMesh.visible = false;
+    referenceGroup.add(lineMesh);
+    lineMesh.visible = false;
 
     const material = new THREE.LineBasicMaterial({ color: 0xff0000 });
     const line = new THREE.Line(geometry, material);
@@ -140,19 +178,35 @@ export default function loadSTLModel(stlFiles) {
                 const mesh = new THREE.Mesh(geometry, material);
                 mesh.name = String(currSeg);
                 //scene.add(mesh);
-                group.add(mesh);
+                stlGroup.add(mesh);
                 if (getVisability(currSeg) === false) {
                     mesh.visible = false;
                 }
                 count++;
                 if (count == stlFiles.length) {
-                    scene.add(group);
-                    //add a delay
-                    // setTimeout(function () {
-                    //     group.rotation.y = Math.PI / 2;
-                    // }, 350);
-                    group.rotation.x = - Math.PI / 2;
-                    group.rotation.z = Math.PI;
+                    rotateObjectAroundAxisQuaternion(stlGroup, new THREE.Vector3(1, 0, 0), Math.PI / 2);
+                    rotateObjectAroundAxisQuaternion(stlGroup, new THREE.Vector3(0, 0, 1), Math.PI);
+                    // const quaternionX1 = new THREE.Quaternion();
+                    // quaternionX1.setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
+                    // stlGroup.applyQuaternion(quaternionX1);
+                    // const quaternionZ1 = new THREE.Quaternion();
+                    // quaternionZ1.setFromAxisAngle(new THREE.Vector3(0, 0, 1), Math.PI);
+                    // stlGroup.applyQuaternion(quaternionZ1);
+                    scene.add(pivot);
+                    rotateObjectAroundAxisQuaternion(pivot, new THREE.Vector3(0, 1, 0), - Math.PI / 2);
+                    rotateObjectAroundAxisQuaternion(pivot, new THREE.Vector3(0, 0, 1), Math.PI * 1.75);
+                    // const quaternionY1 = new THREE.Quaternion();
+                    // quaternionY1.setFromAxisAngle(new THREE.Vector3(0, 1, 0), -Math.PI / 2);
+                    // group.applyQuaternion(quaternionY1);
+                    // const quaternionZ2 = new THREE.Quaternion();
+                    // quaternionZ2.setFromAxisAngle(new THREE.Vector3(0, 0, 1), Math.PI * 1.5);
+                    // group.applyQuaternion(quaternionZ2);
+
+                    // test();
+                    // function test() {
+                    //     rotateObjectAroundAxisQuaternion(pivot, new THREE.Vector3(0, 0, 1), Math.PI / 180);
+                    //     setTimeout(test, 100);
+                    // }
                     controls.update();
                 }
             },
