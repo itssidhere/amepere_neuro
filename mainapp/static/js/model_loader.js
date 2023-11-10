@@ -14,9 +14,8 @@ originToBallJoint.multiplyScalar(1000);
 
 const container = document.getElementById('threejs-container');
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
-camera.position.x = originToBallJoint.x / 2;
-camera.position.z = 1000;
+const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 2000);
+camera.position.z = 800;
 const geometry = new THREE.BufferGeometry();
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -25,13 +24,17 @@ renderer.setClearColor(0x000000, 0);  // make it transparent
 const group = new THREE.Group();
 const controls = new OrbitControls(camera, renderer.domElement);
 
-const pointGeometry = new THREE.SphereGeometry(3, 32, 32);
-const pointMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-const pointMesh = new THREE.Mesh(pointGeometry, pointMaterial);
+const refPointGeometry = new THREE.SphereGeometry(3, 32, 32);
+const refPointMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+const refPointMesh = new THREE.Mesh(refPointGeometry, refPointMaterial);
 
-const lineGeometry = new LineGeometry();
-const lineMaterial = new LineMaterial({ color: 0x00ff00, linewidth: 0.01 });
-const lineMesh = new Line2(lineGeometry, lineMaterial);
+const refLineGeometry = new LineGeometry();
+const refLineMaterial = new LineMaterial({ color: 0x00ff00, linewidth: 0.01 });
+const refLineMesh = new Line2(refLineGeometry, refLineMaterial);
+
+const actualLineGeometry = new LineGeometry();
+const actualLineMaterial = new LineMaterial({ color: 0x00ff00, linewidth: 0.01 });
+const actualLineMesh = new Line2(actualLineGeometry, actualLineMaterial);
 
 let colors = {};
 let names = {};
@@ -43,17 +46,17 @@ fetch('/static/json/config.json')
 
 
 export function setPointVisability(visability) {
-    pointMesh.visible = visability;
+    refPointMesh.visible = visability;
 }
 
 export function updatePointObject(newPos) {
-    pointMesh.position.set(newPos[0], newPos[1], newPos[2]);
+    refPointMesh.position.set(newPos[0], newPos[1], newPos[2]);
 }
 
 export function update3DLine(points) {
-    lineGeometry.setPositions(points);
-    lineGeometry.NeedsUpdate = true;
-    lineMesh.visible = true;
+    refLineGeometry.setPositions(points);
+    refLineGeometry.NeedsUpdate = true;
+    refLineMesh.visible = true;
 }
 
 export function visability3DToggle(id, visability) {
@@ -156,10 +159,10 @@ export default function loadSTLModel(stlFiles) {
     group.add(stlGroup);
 
     scene.add(new THREE.AxesHelper(100));
-    referenceGroup.add(pointMesh);
-    pointMesh.visible = false;
-    referenceGroup.add(lineMesh);
-    lineMesh.visible = false;
+    referenceGroup.add(refPointMesh);
+    refPointMesh.visible = false;
+    referenceGroup.add(refLineMesh);
+    refLineMesh.visible = false;
 
     const material = new THREE.LineBasicMaterial({ color: 0xff0000 });
     const line = new THREE.Line(geometry, material);
@@ -172,12 +175,10 @@ export default function loadSTLModel(stlFiles) {
         loader.load(
             `${fileName}`,
             function (geometry) {
-                // const currSeg = fileName.toString().split('_').slice(-1)[0].split('.')[0];
                 const currSeg = Number(fileName.replace(/^.*(\\|\/|\:)/, '').split('.')[0]);
                 const material = new THREE.MeshStandardMaterial({ color: Number("0x" + colors[currSeg]) });
                 const mesh = new THREE.Mesh(geometry, material);
                 mesh.name = String(currSeg);
-                //scene.add(mesh);
                 stlGroup.add(mesh);
                 if (getVisability(currSeg) === false) {
                     mesh.visible = false;
@@ -186,21 +187,9 @@ export default function loadSTLModel(stlFiles) {
                 if (count == stlFiles.length) {
                     rotateObjectAroundAxisQuaternion(stlGroup, new THREE.Vector3(1, 0, 0), Math.PI / 2);
                     rotateObjectAroundAxisQuaternion(stlGroup, new THREE.Vector3(0, 0, 1), Math.PI);
-                    // const quaternionX1 = new THREE.Quaternion();
-                    // quaternionX1.setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
-                    // stlGroup.applyQuaternion(quaternionX1);
-                    // const quaternionZ1 = new THREE.Quaternion();
-                    // quaternionZ1.setFromAxisAngle(new THREE.Vector3(0, 0, 1), Math.PI);
-                    // stlGroup.applyQuaternion(quaternionZ1);
                     scene.add(pivot);
                     rotateObjectAroundAxisQuaternion(pivot, new THREE.Vector3(0, 1, 0), - Math.PI / 2);
-                    rotateObjectAroundAxisQuaternion(pivot, new THREE.Vector3(0, 0, 1), Math.PI * 1.75);
-                    // const quaternionY1 = new THREE.Quaternion();
-                    // quaternionY1.setFromAxisAngle(new THREE.Vector3(0, 1, 0), -Math.PI / 2);
-                    // group.applyQuaternion(quaternionY1);
-                    // const quaternionZ2 = new THREE.Quaternion();
-                    // quaternionZ2.setFromAxisAngle(new THREE.Vector3(0, 0, 1), Math.PI * 1.5);
-                    // group.applyQuaternion(quaternionZ2);
+                    rotateObjectAroundAxisQuaternion(pivot, new THREE.Vector3(0, 0, 1), Math.PI * 4 / 3);
 
                     // test();
                     // function test() {
