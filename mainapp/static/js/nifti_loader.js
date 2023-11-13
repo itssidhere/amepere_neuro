@@ -22,7 +22,7 @@ fetch('/static/json/visabilities.json', { cache: "no-cache"})
         visabilities = json['visabilities'];
 });
 
-var header, typedData, segmentation;
+var header, typedImg, typedSeg;
 var normFactor, contrast = 1.2;
 
 const scene = new THREE.Scene();
@@ -40,13 +40,13 @@ const segmentation_textures = [];
 
 const pointer = new THREE.Vector2();
 const raycaster = new THREE.Raycaster();
-const raycastPoints = [];
+const refPoints = [];
 const currPoint = new THREE.Vector3();
 
 const entryPoint = new THREE.Vector3();
 const targetPoint = new THREE.Vector3();
 
-const lineMeshes = [];
+const refLineMeshes = [];
 
 let count = 10;
 let isSelectingPoint = false;
@@ -103,16 +103,16 @@ function getMousePos(event)
             sliders[i].oninput();
         }
 
-        raycastPoints[i].position.set(pointFloat[0], pointFloat[1], pointFloat[2]);
+        refPoints[i].position.set(pointFloat[0], pointFloat[1], pointFloat[2]);
         switch (i) {
             case 0:
-                raycastPoints[i].position.y = 0;
+                refPoints[i].position.y = 0;
                 break;
             case 1:
-                raycastPoints[i].position.z = 0;
+                refPoints[i].position.z = 0;
                 break;
             case 2:
-                raycastPoints[i].position.x = 0;
+                refPoints[i].position.x = 0;
                 break;
         }
     }
@@ -140,9 +140,9 @@ function updateLine(entry, target) {
                 tempPoints.push(0, target.y, target.z);
                 break;
         }
-        lineMeshes[i].geometry.setPositions(tempPoints);
-        lineMeshes[i].geometry.NeedsUpdate = true;
-        lineMeshes[i].visible = true;
+        refLineMeshes[i].geometry.setPositions(tempPoints);
+        refLineMeshes[i].geometry.NeedsUpdate = true;
+        refLineMeshes[i].visible = true;
     }
 
     update3DLine(points);
@@ -179,7 +179,7 @@ export async function loadNIFTI2D(path, seg) {
         scene.remove(scene.children[0]);
     }
 
-    segmentation = undefined;
+    typedSeg = undefined;
     
     document.getElementById('left-bar').innerHTML = '';
 
@@ -236,36 +236,7 @@ async function readSegmentation(path) {
                         console.log("Segmentation", header);
                         let segImage = nifti.readImage(segHeader, data);
 
-                        switch (segHeader.datatypeCode) {
-                            case nifti.NIFTI1.TYPE_UINT8:
-                                segmentation = new Uint8Array(segImage);
-                                break;
-                            case nifti.NIFTI1.TYPE_INT16:
-                                segmentation = new Int16Array(segImage);
-                                break;
-                            case nifti.NIFTI1.TYPE_INT32:
-                                segmentation = new Int32Array(segImage);
-                                break;
-                            case nifti.NIFTI1.TYPE_FLOAT32:
-                                segmentation = new Float32Array(segImage);
-                                break;
-                            case nifti.NIFTI1.TYPE_FLOAT64:
-                                segmentation = new Float64Array(segImage);
-                                break;
-                            case nifti.NIFTI1.TYPE_INT8:
-                                segmentation = new Int8Array(segImage);
-                                break;
-                            case nifti.NIFTI1.TYPE_UINT16:
-                                segmentation = new Uint16Array(segImage);
-                                break;
-                            case nifti.NIFTI1.TYPE_UINT32:
-                                segmentation = new Uint32Array(segImage);
-                                break;
-                            default:
-                                return;
-                        }
-                        // readImage(path.replace('_synthseg.nii.gz', '.nii.gz'));
-                        // console.log(segmentation);
+                        typedSeg = createTypedData(segHeader.datatypeCode, segImage)
 
                         displaySegmentationList();
                     }
@@ -274,6 +245,41 @@ async function readSegmentation(path) {
             reader.readAsArrayBuffer(blob);
         });
     return;
+}
+
+function createTypedData(dataTypeCode, source) {
+    let newArray;
+
+    switch (dataTypeCode) {
+        case nifti.NIFTI1.TYPE_UINT8:
+            newArray = new Uint8Array(source);
+            break;
+        case nifti.NIFTI1.TYPE_INT16:
+            newArray = new Int16Array(source);
+            break;
+        case nifti.NIFTI1.TYPE_INT32:
+            newArray = new Int32Array(source);
+            break;
+        case nifti.NIFTI1.TYPE_FLOAT32:
+            newArray = new Float32Array(source);
+            break;
+        case nifti.NIFTI1.TYPE_FLOAT64:
+            newArray = new Float64Array(source);
+            break;
+        case nifti.NIFTI1.TYPE_INT8:
+            newArray = new Int8Array(source);
+            break;
+        case nifti.NIFTI1.TYPE_UINT16:
+            newArray = new Uint16Array(source);
+            break;
+        case nifti.NIFTI1.TYPE_UINT32:
+            newArray = new Uint32Array(source);
+            break;
+        default:
+            return;
+    }
+
+    return newArray;
 }
 
 function makeSlice(file, start, length) {
@@ -308,41 +314,12 @@ function readNIFTI(data) {
         console.log("NIFTI", header);
         let niftiImage = nifti.readImage(header, data);
 
-        switch (header.datatypeCode) {
-            case nifti.NIFTI1.TYPE_UINT8:
-                typedData = new Uint8Array(niftiImage);
-                break;
-            case nifti.NIFTI1.TYPE_INT16:
-                typedData = new Int16Array(niftiImage);
-                break;
-            case nifti.NIFTI1.TYPE_INT32:
-                typedData = new Int32Array(niftiImage);
-                break;
-            case nifti.NIFTI1.TYPE_FLOAT32:
-                typedData = new Float32Array(niftiImage);
-                break;
-            case nifti.NIFTI1.TYPE_FLOAT64:
-                typedData = new Float64Array(niftiImage);
-                break;
-            case nifti.NIFTI1.TYPE_INT8:
-                typedData = new Int8Array(niftiImage);
-                break;
-            case nifti.NIFTI1.TYPE_UINT16:
-                typedData = new Uint16Array(niftiImage);
-                break;
-            case nifti.NIFTI1.TYPE_UINT32:
-                typedData = new Uint32Array(niftiImage);
-                break;
-            default:
-                return;
-        }
-
-        // applyTransformationFromHeader(typedData, header);
+        typedImg = createTypedData(header.datatypeCode, niftiImage);
 
         let max = 0;
 
-        for (let i = 0; i < typedData.length; i++) {
-            if (typedData[i] > max) max = typedData[i];
+        for (let i = 0; i < typedImg.length; i++) {
+            if (typedImg[i] > max) max = typedImg[i];
         }
 
         normFactor = 255 / max;
@@ -370,21 +347,21 @@ function readNIFTI(data) {
             const segmentation_mesh = new THREE.Mesh(segmentation_geometry, segmentation_material);
             segmentation_mesh.layers.set(i + 1);
 
-            const raycastPointGeometry = new THREE.SphereGeometry(3, 32, 32);
-            const raycastPointMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-            raycastPoints.push(new THREE.Mesh(raycastPointGeometry, raycastPointMaterial));
-            raycastPoints[i].layers.set(i + 1);
-            raycastPoints[i].visible = false;
-            scene.add(raycastPoints[i]);
+            const refPointGeometry = new THREE.SphereGeometry(3, 32, 32);
+            const refPointMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+            refPoints.push(new THREE.Mesh(refPointGeometry, refPointMaterial));
+            refPoints[i].layers.set(i + 1);
+            refPoints[i].visible = false;
+            scene.add(refPoints[i]);
 
-            const lineGeometry = new LineGeometry();
-            const lineMaterial = new LineMaterial({ color: 0x00ff00, linewidth: 0.01 });
-            lineMeshes.push(new Line2(lineGeometry, lineMaterial));
-            lineMeshes[i].layers.set(i + 1);
-            lineMeshes[i].visible = false;
-            scene.add(lineMeshes[i]);
-            lineMeshes[i].renderOrder = 0 || 999
-            lineMeshes[i].material.depthTest = false
+            const refLineGeometry = new LineGeometry();
+            const refLineMaterial = new LineMaterial({ color: 0x00ff00, linewidth: 0.01 });
+            refLineMeshes.push(new Line2(refLineGeometry, refLineMaterial));
+            refLineMeshes[i].layers.set(i + 1);
+            refLineMeshes[i].visible = false;
+            scene.add(refLineMeshes[i]);
+            refLineMeshes[i].renderOrder = 0 || 999
+            refLineMeshes[i].material.depthTest = false
 
             // cameras[i].position.set(header.qoffset_x, 0, header.qoffset_z);
 
@@ -423,19 +400,8 @@ function readNIFTI(data) {
             sliders[i] = document.getElementById(`nifti-slider-${i}`);
             sliders[i].max = header.dims[3 - i] - 1;
             sliders[i].value = Math.round((header.dims[3 - i] - 1) / 2);
-
-            if (i === 0) { 
-                sliders[i].oninput = function () {
-                    displayAxial(sliders[i].value);
-                }
-            } else if (i === 1) {
-                sliders[i].oninput = function () {
-                    displayCoronal(sliders[i].value);
-                }
-            } else if (i === 2) {
-                sliders[i].oninput = function () {
-                    displaySagittal(sliders[i].value);
-                }
+            sliders[i].oninput = function () {
+                updateSliceView(i, sliders[i].value);
             }
 
             containers[i].appendChild(renderers[i].domElement);
@@ -489,7 +455,7 @@ function updateSliceView(index, slice) {
                 offset = slice + col * header.dims[1] + row * sliceOffset;
             }
 
-            let value = typedData[offset] * normFactor;
+            let value = typedImg[offset] * normFactor;
             value = Math.round(contrast * (value - 128) + 128);
             if (value < 0) value = 0;
             let pixelOffset = (rowOffset + col) * 4;
@@ -499,9 +465,9 @@ function updateSliceView(index, slice) {
             imageData[pixelOffset + 2] = value;
             imageData[pixelOffset + 3] = 0xFF;
 
-            if (segmentation === undefined) continue;
+            if (typedSeg === undefined) continue;
             
-            let segValue = segmentation[offset];
+            let segValue = typedSeg[offset];
             // console.log(segValue);
             if (visabilities[Number(segValue)] === true) {
                 let color = colors[Number(segValue)];
@@ -543,24 +509,11 @@ function updateSliceView(index, slice) {
     render();
 }
 
-// Now call the updateSliceView function for each slice view
-function displayAxial(slice) {
-    updateSliceView(0, slice);
-}
-
-function displayCoronal(slice) {
-    updateSliceView(1, slice);
-}
-
-function displaySagittal(slice) {
-    updateSliceView(2, slice);
-}
-
 function refreshDisplay()
 {
-    displayAxial(sliders[0].value);
-    displayCoronal(sliders[1].value);
-    displaySagittal(sliders[2].value);
+    for (let i = 0; i < 3; i++) {
+        updateSliceView(i, sliders[i].value);
+    }
 }
 
 function visability2DToggle() {
@@ -575,11 +528,11 @@ function displaySegmentationList() {
 
     let existingSegments = [];
 
-    for (let i = 0; i < segmentation.length; i++) 
+    for (let i = 0; i < typedSeg.length; i++) 
     {
-        if (segmentation[i] == 0 || existingSegments.includes(segmentation[i])) continue;
+        if (typedSeg[i] == 0 || existingSegments.includes(typedSeg[i])) continue;
         {
-            const id = Number(segmentation[i]);
+            const id = Number(typedSeg[i]);
             const segmentDiv = document.createElement('div');
             segmentDiv.className = 'segment';
             segmentDiv.id = `segment-${id}`;
@@ -611,7 +564,7 @@ function displaySegmentationList() {
             button.appendChild(icon);
 
             segmentItems[id] = segmentDiv;
-            existingSegments.push(segmentation[i]);
+            existingSegments.push(typedSeg[i]);
         }
     }
 
@@ -697,7 +650,7 @@ function setPoint(isEntry)
     isSelectingPoint = !isSelectingPoint;
     setPointVisability(isSelectingPoint);
     for (let i = 0; i < 3; i++) {
-        raycastPoints[i].visible = isSelectingPoint;
+        refPoints[i].visible = isSelectingPoint;
     }
     
     if (isSelectingPoint) {
@@ -715,16 +668,16 @@ function setPoint(isEntry)
 
         updatePointObject(currPoint);
         for (let i = 0; i < 3; i++) {
-            raycastPoints[i].position.set(currPoint.x, currPoint.y, currPoint.z);
+            refPoints[i].position.set(currPoint.x, currPoint.y, currPoint.z);
             switch (i) {
                 case 0:
-                    raycastPoints[i].position.y = 0;
+                    refPoints[i].position.y = 0;
                     break;
                 case 1:
-                    raycastPoints[i].position.z = 0;
+                    refPoints[i].position.z = 0;
                     break;
                 case 2:
-                    raycastPoints[i].position.x = 0;
+                    refPoints[i].position.x = 0;
                     break;
             }
         }
