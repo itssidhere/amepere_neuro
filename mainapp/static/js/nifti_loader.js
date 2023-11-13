@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'orbit-control';
-import { visability3DToggle, setPointVisability, updatePointObject } from './model_loader.js'
+import { visability3DToggle, setPointVisability, updatePointObject, update3DLine } from './model_loader.js'
+import { LineGeometry } from 'line-geometry';
+import { LineMaterial } from 'line-material';
+import { Line2 } from 'line2';
 
 let colors = {};
 let names = {};
@@ -11,10 +14,15 @@ fetch('/static/json/config.json')
     .then((json) => { 
         colors = json['colors']; 
         names = json['names']; 
+});
+
+fetch('/static/json/visabilities.json', { cache: "no-cache"})
+    .then((response) => response.json())
+    .then((json) => { 
         visabilities = json['visabilities'];
 });
 
-var header, typedData, segmentation;
+var header, typedImg, typedSeg;
 var normFactor, contrast = 1.2;
 
 const scene = new THREE.Scene();
@@ -32,17 +40,19 @@ const segmentation_textures = [];
 
 const pointer = new THREE.Vector2();
 const raycaster = new THREE.Raycaster();
-const raycastPoints = [];
+const refPoints = [];
 const currPoint = new THREE.Vector3();
 
 const entryPoint = new THREE.Vector3();
-const destPoint = new THREE.Vector3();
+const targetPoint = new THREE.Vector3();
+
+const refLineMeshes = [];
 
 let count = 10;
 let isSelectingPoint = false;
 
 document.getElementById('btn-entry').addEventListener('click', setEntryPoint);
-document.getElementById('btn-dest').addEventListener('click', setDestPoint);
+document.getElementById('btn-target').addEventListener('click', setTargetPoint);
 
 function getMousePos(event) 
 {
@@ -93,20 +103,49 @@ function getMousePos(event)
             sliders[i].oninput();
         }
 
-        raycastPoints[i].position.set(pointFloat[0], pointFloat[1], pointFloat[2]);
+        refPoints[i].position.set(pointFloat[0], pointFloat[1], pointFloat[2]);
         switch (i) {
             case 0:
-                raycastPoints[i].position.y = 0;
+                refPoints[i].position.y = 0;
                 break;
             case 1:
-                raycastPoints[i].position.z = 0;
+                refPoints[i].position.z = 0;
                 break;
             case 2:
-                raycastPoints[i].position.x = 0;
+                refPoints[i].position.x = 0;
                 break;
         }
     }
     updatePointObject(pointFloat);
+}
+
+function updateLine(entry, target) {
+    const points = [];
+    points.push(entry.x, entry.y, entry.z);
+    points.push(target.x, target.y, target.z);
+
+    for (let i = 0; i < 3; i++) {
+        let tempPoints = [];
+        switch (i) {
+            case 0:
+                tempPoints.push(entry.x, 0, entry.z);
+                tempPoints.push(target.x, 0, target.z);
+                break;
+            case 1:
+                tempPoints.push(entry.x, entry.y, 0);
+                tempPoints.push(target.x, target.y, 0);
+                break;
+            case 2:
+                tempPoints.push(0, entry.y, entry.z);
+                tempPoints.push(0, target.y, target.z);
+                break;
+        }
+        refLineMeshes[i].geometry.setPositions(tempPoints);
+        refLineMeshes[i].geometry.NeedsUpdate = true;
+        refLineMeshes[i].visible = true;
+    }
+
+    update3DLine(points);
 }
 
 var isMouseDown = false; 
@@ -140,7 +179,7 @@ export async function loadNIFTI2D(path, seg) {
         scene.remove(scene.children[0]);
     }
 
-    segmentation = undefined;
+    typedSeg = undefined;
     
     document.getElementById('left-bar').innerHTML = '';
 
@@ -197,36 +236,7 @@ async function readSegmentation(path) {
                         console.log("Segmentation", header);
                         let segImage = nifti.readImage(segHeader, data);
 
-                        switch (segHeader.datatypeCode) {
-                            case nifti.NIFTI1.TYPE_UINT8:
-                                segmentation = new Uint8Array(segImage);
-                                break;
-                            case nifti.NIFTI1.TYPE_INT16:
-                                segmentation = new Int16Array(segImage);
-                                break;
-                            case nifti.NIFTI1.TYPE_INT32:
-                                segmentation = new Int32Array(segImage);
-                                break;
-                            case nifti.NIFTI1.TYPE_FLOAT32:
-                                segmentation = new Float32Array(segImage);
-                                break;
-                            case nifti.NIFTI1.TYPE_FLOAT64:
-                                segmentation = new Float64Array(segImage);
-                                break;
-                            case nifti.NIFTI1.TYPE_INT8:
-                                segmentation = new Int8Array(segImage);
-                                break;
-                            case nifti.NIFTI1.TYPE_UINT16:
-                                segmentation = new Uint16Array(segImage);
-                                break;
-                            case nifti.NIFTI1.TYPE_UINT32:
-                                segmentation = new Uint32Array(segImage);
-                                break;
-                            default:
-                                return;
-                        }
-                        // readImage(path.replace('_synthseg.nii.gz', '.nii.gz'));
-                        // console.log(segmentation);
+                        typedSeg = createTypedData(segHeader.datatypeCode, segImage)
 
                         displaySegmentationList();
                     }
@@ -235,6 +245,41 @@ async function readSegmentation(path) {
             reader.readAsArrayBuffer(blob);
         });
     return;
+}
+
+function createTypedData(dataTypeCode, source) {
+    let newArray;
+
+    switch (dataTypeCode) {
+        case nifti.NIFTI1.TYPE_UINT8:
+            newArray = new Uint8Array(source);
+            break;
+        case nifti.NIFTI1.TYPE_INT16:
+            newArray = new Int16Array(source);
+            break;
+        case nifti.NIFTI1.TYPE_INT32:
+            newArray = new Int32Array(source);
+            break;
+        case nifti.NIFTI1.TYPE_FLOAT32:
+            newArray = new Float32Array(source);
+            break;
+        case nifti.NIFTI1.TYPE_FLOAT64:
+            newArray = new Float64Array(source);
+            break;
+        case nifti.NIFTI1.TYPE_INT8:
+            newArray = new Int8Array(source);
+            break;
+        case nifti.NIFTI1.TYPE_UINT16:
+            newArray = new Uint16Array(source);
+            break;
+        case nifti.NIFTI1.TYPE_UINT32:
+            newArray = new Uint32Array(source);
+            break;
+        default:
+            return;
+    }
+
+    return newArray;
 }
 
 function makeSlice(file, start, length) {
@@ -269,46 +314,17 @@ function readNIFTI(data) {
         console.log("NIFTI", header);
         let niftiImage = nifti.readImage(header, data);
 
-        switch (header.datatypeCode) {
-            case nifti.NIFTI1.TYPE_UINT8:
-                typedData = new Uint8Array(niftiImage);
-                break;
-            case nifti.NIFTI1.TYPE_INT16:
-                typedData = new Int16Array(niftiImage);
-                break;
-            case nifti.NIFTI1.TYPE_INT32:
-                typedData = new Int32Array(niftiImage);
-                break;
-            case nifti.NIFTI1.TYPE_FLOAT32:
-                typedData = new Float32Array(niftiImage);
-                break;
-            case nifti.NIFTI1.TYPE_FLOAT64:
-                typedData = new Float64Array(niftiImage);
-                break;
-            case nifti.NIFTI1.TYPE_INT8:
-                typedData = new Int8Array(niftiImage);
-                break;
-            case nifti.NIFTI1.TYPE_UINT16:
-                typedData = new Uint16Array(niftiImage);
-                break;
-            case nifti.NIFTI1.TYPE_UINT32:
-                typedData = new Uint32Array(niftiImage);
-                break;
-            default:
-                return;
-        }
-
-        // applyTransformationFromHeader(typedData, header);
+        typedImg = createTypedData(header.datatypeCode, niftiImage);
 
         let max = 0;
 
-        for (let i = 0; i < typedData.length; i++) {
-            if (typedData[i] > max) max = typedData[i];
+        for (let i = 0; i < typedImg.length; i++) {
+            if (typedImg[i] > max) max = typedImg[i];
         }
 
         normFactor = 255 / max;
 
-        scene.add(new THREE.AxesHelper(100));
+        // scene.add(new THREE.AxesHelper(100));
 
         for (let i = 0; i <= 2; i++) {
             let width, height;
@@ -331,12 +347,21 @@ function readNIFTI(data) {
             const segmentation_mesh = new THREE.Mesh(segmentation_geometry, segmentation_material);
             segmentation_mesh.layers.set(i + 1);
 
-            const raycastPointGeometry = new THREE.SphereGeometry(3, 32, 32);
-            const raycastPointMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
-            raycastPoints.push(new THREE.Mesh(raycastPointGeometry, raycastPointMaterial));
-            raycastPoints[i].layers.set(i + 1);
-            scene.add(raycastPoints[i]);
-            raycastPoints[i].visible = false;
+            const refPointGeometry = new THREE.SphereGeometry(3, 32, 32);
+            const refPointMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+            refPoints.push(new THREE.Mesh(refPointGeometry, refPointMaterial));
+            refPoints[i].layers.set(i + 1);
+            refPoints[i].visible = false;
+            scene.add(refPoints[i]);
+
+            const refLineGeometry = new LineGeometry();
+            const refLineMaterial = new LineMaterial({ color: 0x00ff00, linewidth: 0.01 });
+            refLineMeshes.push(new Line2(refLineGeometry, refLineMaterial));
+            refLineMeshes[i].layers.set(i + 1);
+            refLineMeshes[i].visible = false;
+            scene.add(refLineMeshes[i]);
+            refLineMeshes[i].renderOrder = 0 || 999
+            refLineMeshes[i].material.depthTest = false
 
             // cameras[i].position.set(header.qoffset_x, 0, header.qoffset_z);
 
@@ -375,19 +400,8 @@ function readNIFTI(data) {
             sliders[i] = document.getElementById(`nifti-slider-${i}`);
             sliders[i].max = header.dims[3 - i] - 1;
             sliders[i].value = Math.round((header.dims[3 - i] - 1) / 2);
-
-            if (i === 0) { 
-                sliders[i].oninput = function () {
-                    displayAxial(sliders[i].value);
-                }
-            } else if (i === 1) {
-                sliders[i].oninput = function () {
-                    displayCoronal(sliders[i].value);
-                }
-            } else if (i === 2) {
-                sliders[i].oninput = function () {
-                    displaySagittal(sliders[i].value);
-                }
+            sliders[i].oninput = function () {
+                updateSliceView(i, sliders[i].value);
             }
 
             containers[i].appendChild(renderers[i].domElement);
@@ -441,7 +455,7 @@ function updateSliceView(index, slice) {
                 offset = slice + col * header.dims[1] + row * sliceOffset;
             }
 
-            let value = typedData[offset] * normFactor;
+            let value = typedImg[offset] * normFactor;
             value = Math.round(contrast * (value - 128) + 128);
             if (value < 0) value = 0;
             let pixelOffset = (rowOffset + col) * 4;
@@ -451,9 +465,9 @@ function updateSliceView(index, slice) {
             imageData[pixelOffset + 2] = value;
             imageData[pixelOffset + 3] = 0xFF;
 
-            if (segmentation === undefined) continue;
+            if (typedSeg === undefined) continue;
             
-            let segValue = segmentation[offset];
+            let segValue = typedSeg[offset];
             // console.log(segValue);
             if (visabilities[Number(segValue)] === true) {
                 let color = colors[Number(segValue)];
@@ -495,24 +509,11 @@ function updateSliceView(index, slice) {
     render();
 }
 
-// Now call the updateSliceView function for each slice view
-function displayAxial(slice) {
-    updateSliceView(0, slice);
-}
-
-function displayCoronal(slice) {
-    updateSliceView(1, slice);
-}
-
-function displaySagittal(slice) {
-    updateSliceView(2, slice);
-}
-
 function refreshDisplay()
 {
-    displayAxial(sliders[0].value);
-    displayCoronal(sliders[1].value);
-    displaySagittal(sliders[2].value);
+    for (let i = 0; i < 3; i++) {
+        updateSliceView(i, sliders[i].value);
+    }
 }
 
 function visability2DToggle() {
@@ -527,11 +528,11 @@ function displaySegmentationList() {
 
     let existingSegments = [];
 
-    for (let i = 0; i < segmentation.length; i++) 
+    for (let i = 0; i < typedSeg.length; i++) 
     {
-        if (segmentation[i] == 0 || existingSegments.includes(segmentation[i])) continue;
+        if (typedSeg[i] == 0 || existingSegments.includes(typedSeg[i])) continue;
         {
-            const id = Number(segmentation[i]);
+            const id = Number(typedSeg[i]);
             const segmentDiv = document.createElement('div');
             segmentDiv.className = 'segment';
             segmentDiv.id = `segment-${id}`;
@@ -563,7 +564,7 @@ function displaySegmentationList() {
             button.appendChild(icon);
 
             segmentItems[id] = segmentDiv;
-            existingSegments.push(segmentation[i]);
+            existingSegments.push(typedSeg[i]);
         }
     }
 
@@ -592,6 +593,43 @@ function visabilityToggle(id) {
     visability3DToggle(id, visabilities[id]);
     refreshSegmentationList(id, visabilities[id]);
 
+    saveVisability(id, visabilities[id]);
+}
+
+function saveVisability(id, visability) {
+    fetch('/saveVisabilities/', {
+        method: 'POST',
+        body: JSON.stringify({
+            newID: id,
+            newVis: visability
+        }),
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken'),
+        },
+    })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Success:', data);
+        })
+        .catch((error) => {
+            console.error('Error:', error);
+        });
+}
+
+function getCookie(name){
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== ''){
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++){
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')){
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+
 }
 
 export function getVisability(id) {
@@ -599,49 +637,68 @@ export function getVisability(id) {
 }
 
 function setEntryPoint() {
-    setPoint(document.getElementById('btn-entry'));
-    if (!isSelectingPoint) {
-        entryPoint.copy(currPoint);
-    }
+    setPoint(true);
 }
 
-function setDestPoint() {
-    if (entryPoint.equals(destPoint)) {
-        alert('Please set an entry point first.');
-        return;
-    }
-    setPoint(document.getElementById('btn-dest'));
-    if (!isSelectingPoint) {
-        destPoint.copy(currPoint);
-        console.log(entryPoint, destPoint);
-    }
+function setTargetPoint() {
+    setPoint(false);
 }
 
-function setPoint(btn)
+function setPoint(isEntry)
 {
+    const btn = isEntry ? document.getElementById('btn-entry') : document.getElementById('btn-target');
     isSelectingPoint = !isSelectingPoint;
     setPointVisability(isSelectingPoint);
-    // console.log(btn)
+    for (let i = 0; i < 3; i++) {
+        refPoints[i].visible = isSelectingPoint;
+    }
     
     if (isSelectingPoint) {
-        count = 10;
-        currPoint.set(0, 0, 0);
-        updatePointObject(currPoint);
         btn.classList.remove('bg-blue-500')
         btn.classList.remove('hover:bg-blue-700');
-        btn.classList.add('bg-red-500');
-        btn.classList.add('hover:bg-red-700');
+        btn.classList.add('bg-green-500');
+        btn.classList.add('hover:bg-green-700');
         btn.innerText = btn.innerText.replace('Set', 'Save');
+
+        if (isEntry) {
+            currPoint.set(entryPoint.x, entryPoint.y, entryPoint.z);
+        } else {
+            currPoint.set(targetPoint.x, targetPoint.y, targetPoint.z);
+        }
+
+        updatePointObject(currPoint);
+        for (let i = 0; i < 3; i++) {
+            refPoints[i].position.set(currPoint.x, currPoint.y, currPoint.z);
+            switch (i) {
+                case 0:
+                    refPoints[i].position.y = 0;
+                    break;
+                case 1:
+                    refPoints[i].position.z = 0;
+                    break;
+                case 2:
+                    refPoints[i].position.x = 0;
+                    break;
+            }
+        }
+
     } else {
-        btn.classList.remove('bg-red-500');
-        btn.classList.remove('hover:bg-red-700');
+        btn.classList.remove('bg-green-500');
+        btn.classList.remove('hover:bg-green-700');
         btn.classList.add('bg-blue-500')
         btn.classList.add('hover:bg-blue-700');
         btn.innerText = btn.innerText.replace('Save', 'Set');
-    }
 
-    for (let i = 0; i < 3; i++) {
-        raycastPoints[i].visible = isSelectingPoint;
-        raycastPoints[i].position.set(0, 0, 0);
-    }
+        if (isEntry) {
+            entryPoint.copy(currPoint);
+            if (targetPoint.x !== 0 || targetPoint.y !== 0 || targetPoint.z !== 0) {
+                updateLine(entryPoint, targetPoint);
+            }
+        } else {
+            targetPoint.copy(currPoint);
+            if (entryPoint.x !== 0 || entryPoint.y !== 0 || entryPoint.z !== 0) {
+                updateLine(entryPoint, targetPoint);
+            }
+        }
+    }    
 }
