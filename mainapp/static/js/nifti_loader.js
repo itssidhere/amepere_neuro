@@ -11,16 +11,16 @@ let visabilities = {};
 
 fetch('/static/json/config.json')
     .then((response) => response.json())
-    .then((json) => { 
-        colors = json['colors']; 
-        names = json['names']; 
-});
+    .then((json) => {
+        colors = json['colors'];
+        names = json['names'];
+    });
 
-fetch('/static/json/visabilities.json', { cache: "no-cache"})
+fetch('/static/json/visabilities.json', { cache: "no-cache" })
     .then((response) => response.json())
-    .then((json) => { 
+    .then((json) => {
         visabilities = json['visabilities'];
-});
+    });
 
 var header, typedImg, typedSeg;
 var normFactor, contrast = 1.2;
@@ -54,8 +54,7 @@ let isSelectingPoint = false;
 document.getElementById('btn-entry').addEventListener('click', setEntryPoint);
 document.getElementById('btn-target').addEventListener('click', setTargetPoint);
 
-function getMousePos(event) 
-{
+function getMousePos(event) {
     if (!isSelectingPoint) return;
     if (count > 0) {
         count--;
@@ -89,11 +88,11 @@ function getMousePos(event)
     }
 
     const newSliderValues =
-    [
-        Math.round((header.dims[3] - 1) / 2 + currPoint.y),
-        Math.round((header.dims[2] - 1) / 2 + currPoint.z),
-        Math.round((header.dims[1] - 1) / 2 + currPoint.x)
-    ];
+        [
+            Math.round((header.dims[3] - 1) / 2 + currPoint.y),
+            Math.round((header.dims[2] - 1) / 2 + currPoint.z),
+            Math.round((header.dims[1] - 1) / 2 + currPoint.x)
+        ];
 
     const pointFloat = new Float32Array(currPoint);
     // console.log(pointFloat);
@@ -148,7 +147,7 @@ function updateLine(entry, target) {
     update3DLine(points);
 }
 
-var isMouseDown = false; 
+var isMouseDown = false;
 
 function onMouseMove(evt) {
     if (isMouseDown) {
@@ -163,41 +162,38 @@ for (let i = 0; i <= 2; i++) {
 
     if (i === 0) {
         cameras[i].rotation.x = - Math.PI / 2;
-    } 
+    }
     else if (i === 2) {
         cameras[i].rotation.y = Math.PI / 2;
     }
-    
+
     renderers.push(new THREE.WebGLRenderer({ antialias: true, alpha: true }));
     renderers[i].setSize(containers[i].clientWidth, containers[i].clientHeight);  // Adjust size to fit the grid item.
     renderers[i].setClearColor(0x000000); // Set a black background color
 }
 
-export async function loadNIFTI2D(path, seg) {   
+export async function loadNIFTI2D(path, seg) {
 
     while (scene.children.length > 0) {
         scene.remove(scene.children[0]);
     }
 
     typedSeg = undefined;
-    
+
     document.getElementById('left-bar').innerHTML = '';
 
-    if (seg === true)
-    {
+    if (seg === true) {
         await readSegmentation(path.replace('.nii.gz', '_synthseg.nii.gz'));
         await readImage(path.replace('.nii.gz', '_resampled.nii.gz'));
-    } else 
-    {
+    } else {
         await readImage(path);
     }
 
-    
+
     console.log("loadNIFTI2D done, segmentation: ", seg);
 }
 
-async function readImage(path) 
-{
+async function readImage(path) {
     await fetch(path)
         .then(res => res.blob()) // Gets the response and returns it as a blob
         .then(file => {
@@ -212,7 +208,7 @@ async function readImage(path)
 
             reader.readAsArrayBuffer(blob);
         });
-    
+
 }
 
 
@@ -342,7 +338,7 @@ function readNIFTI(data) {
 
             segmentation_data[i] = new Uint8Array(4 * width * height);
             segmentation_textures[i] = new THREE.DataTexture(segmentation_data[i], width, height);
-            const segmentation_material = new THREE.MeshBasicMaterial({ map: segmentation_textures[i] , transparent : true, opacity: 0.5 });
+            const segmentation_material = new THREE.MeshBasicMaterial({ map: segmentation_textures[i], transparent: true, opacity: 0.5 });
             const segmentation_geometry = new THREE.PlaneGeometry(width, height);
             const segmentation_mesh = new THREE.Mesh(segmentation_geometry, segmentation_material);
             segmentation_mesh.layers.set(i + 1);
@@ -365,17 +361,15 @@ function readNIFTI(data) {
 
             // cameras[i].position.set(header.qoffset_x, 0, header.qoffset_z);
 
-            if (i === 0) 
-            {
-                const ratio = (header.pixDims[2]) / (header.pixDims[1] );
+            if (i === 0) {
+                const ratio = (header.pixDims[2]) / (header.pixDims[1]);
                 geometry.scale(1, ratio, 1);
                 segmentation_geometry.scale(1, ratio, 1);
                 meshes[i].rotation.x = - Math.PI / 2;
                 segmentation_mesh.rotation.x = - Math.PI / 2;
                 cameras[i].position.y = Math.sqrt(Math.pow(header.dims[1] / 2, 2) + Math.pow(header.dims[2] / 2, 2));
-            } 
-            else if (i === 1) 
-            {
+            }
+            else if (i === 1) {
                 const ratio = (header.pixDims[3]) / (header.pixDims[1]);
                 geometry.scale(1, ratio, 1);
                 segmentation_geometry.scale(1, ratio, 1);
@@ -383,8 +377,8 @@ function readNIFTI(data) {
             }
 
             else if (i === 2) {
-                const ratio = (header.pixDims[3] ) / (header.pixDims[2]);
-                geometry.scale(1, ratio , 1);
+                const ratio = (header.pixDims[3]) / (header.pixDims[2]);
+                geometry.scale(1, ratio, 1);
                 segmentation_geometry.scale(1, ratio, 1);
                 meshes[i].rotation.y = Math.PI / 2;
                 segmentation_mesh.rotation.y = Math.PI / 2;
@@ -415,7 +409,6 @@ function readNIFTI(data) {
 // Helper function to update a specific slice view
 function updateSliceView(index, slice) {
     slice = Number(slice);
-
     let unit = ["", "m", "mm", "um"];
 
     const slider_value = Math.round(slice * header.pixDims[3 - index]);
@@ -443,7 +436,7 @@ function updateSliceView(index, slice) {
 
     // console.log(segmentation)
 
-    for (let row = 0; row < rows; row++) {  
+    for (let row = 0; row < rows; row++) {
         let rowOffset = row * cols;
         for (let col = 0; col < cols; col++) {
             let offset;
@@ -459,14 +452,14 @@ function updateSliceView(index, slice) {
             value = Math.round(contrast * (value - 128) + 128);
             if (value < 0) value = 0;
             let pixelOffset = (rowOffset + col) * 4;
-            
+
             imageData[pixelOffset] = value;
             imageData[pixelOffset + 1] = value;
             imageData[pixelOffset + 2] = value;
             imageData[pixelOffset + 3] = 0xFF;
 
             if (typedSeg === undefined) continue;
-            
+
             let segValue = typedSeg[offset];
             // console.log(segValue);
             if (visabilities[Number(segValue)] === true) {
@@ -491,7 +484,7 @@ function updateSliceView(index, slice) {
     segmentation_data[index].set(segmentationData);
     segmentation_textures[index].needsUpdate = true;
 
-    containers[index].addEventListener('mousedown', (evt) => {isMouseDown = true; onMouseMove(evt)});
+    containers[index].addEventListener('mousedown', (evt) => { isMouseDown = true; onMouseMove(evt) });
     containers[index].addEventListener('mousemove', onMouseMove);
     containers[index].addEventListener('mouseup', () => isMouseDown = false);
 
@@ -509,8 +502,7 @@ function updateSliceView(index, slice) {
     render();
 }
 
-function refreshDisplay()
-{
+function refreshDisplay() {
     for (let i = 0; i < 3; i++) {
         updateSliceView(i, sliders[i].value);
     }
@@ -528,8 +520,7 @@ function displaySegmentationList() {
 
     let existingSegments = [];
 
-    for (let i = 0; i < typedSeg.length; i++) 
-    {
+    for (let i = 0; i < typedSeg.length; i++) {
         if (typedSeg[i] == 0 || existingSegments.includes(typedSeg[i])) continue;
         {
             const id = Number(typedSeg[i]);
@@ -573,8 +564,7 @@ function displaySegmentationList() {
     });
 }
 
-function refreshSegmentationList(id, visability)
-{
+function refreshSegmentationList(id, visability) {
     let button = document.getElementById(`segment-button-${id}`);
     let icon = button.querySelector('div');
     if (visability === true) {
@@ -616,13 +606,13 @@ function saveVisability(id, visability) {
         });
 }
 
-function getCookie(name){
+function getCookie(name) {
     let cookieValue = null;
-    if (document.cookie && document.cookie !== ''){
+    if (document.cookie && document.cookie !== '') {
         const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++){
+        for (let i = 0; i < cookies.length; i++) {
             const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === (name + '=')){
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
                 cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
                 break;
             }
@@ -644,15 +634,14 @@ function setTargetPoint() {
     setPoint(false);
 }
 
-function setPoint(isEntry)
-{
+function setPoint(isEntry) {
     const btn = isEntry ? document.getElementById('btn-entry') : document.getElementById('btn-target');
     isSelectingPoint = !isSelectingPoint;
     setPointVisability(isSelectingPoint);
     for (let i = 0; i < 3; i++) {
         refPoints[i].visible = isSelectingPoint;
     }
-    
+
     if (isSelectingPoint) {
         btn.classList.remove('bg-blue-500')
         btn.classList.remove('hover:bg-blue-700');
@@ -700,5 +689,5 @@ function setPoint(isEntry)
                 updateLine(entryPoint, targetPoint);
             }
         }
-    }    
+    }
 }

@@ -149,29 +149,32 @@ def get_nifti(request):
 
 def send_model(request):
     print("Sending model")
-    model_path = "/home/sid/Documents/projects/ampere_neuro/media/mri_files/443501_PATIENT_05_synthseg"
-    evdSIM_path = "/home/sid/Documents/build-evdSIM-Desktop_Qt_5_15_2_GCC_64bit-Release/evdSIM"
-    command = f"sudo -S {evdSIM_path} {model_path}".split()
-    subprocess.run(
-    command, stdout=subprocess.PIPE, input=getpass("password: "), encoding="ascii",
-)
+    model_names = json.loads(request.body)['model_names']
+    
+    _,  model_path = getSynthsegFromId(json.loads(request.body)['model_id'])
+    model_arg = ''
+    for model_name in model_names:
+        model_arg += f" {model_path}/{model_name}.stl"
 
-    # sio.emit("send_model_django", model_path)
-    return JsonResponse({"success": True, "file": model_path})
+    haptic_path = "/home/sid/Documents/projects/c++/chai3d-master/bin/lin-x86_64/ModelViewer"
+
+    command = f"{haptic_path}".split()
+    command.append(model_arg.strip())
+    print(command)
+    subprocess.run(
+    command, stdout=subprocess.PIPE, encoding="ascii",
+    )
+
+    return JsonResponse({"success": True})
 
 
 def get_stl_folder(request):
     model_name = json.loads(request.body)['model_name']
-    BASE_DIR = Path(__file__).resolve().parent.parent
-    # media folder
-    folder_name = model_name.replace(".nii.gz", "_synthseg")
-    MEDIA_DIR = BASE_DIR / "media"
-    MEDIA_LOCAL = f"/media/mri_files/{folder_name}"
-    
-    STL_DIR = MEDIA_DIR.joinpath('mri_files').joinpath(folder_name)
+    MEDIA_LOCAL, STL_DIR = getSynthsegFromId(model_name)
     stl_files = [os.path.join(MEDIA_LOCAL, f) for f in os.listdir(STL_DIR) if f.endswith(".stl")]
 
     return JsonResponse({"success": True, "files": stl_files})
+
 
 def save_visabilities(request):
     id = json.loads(request.body)['newID']
@@ -185,3 +188,17 @@ def save_visabilities(request):
         f.truncate()
     
     return JsonResponse({"success": True})
+
+
+
+
+# helper functions
+def getSynthsegFromId(model_name):
+    BASE_DIR = Path(__file__).resolve().parent.parent
+    # media folder
+    folder_name = model_name.replace(".nii.gz", "_synthseg")
+    MEDIA_DIR = BASE_DIR / "media"
+    MEDIA_LOCAL = f"/media/mri_files/{folder_name}"
+    
+    STL_DIR = MEDIA_DIR.joinpath('mri_files').joinpath(folder_name)
+    return MEDIA_LOCAL,STL_DIR
