@@ -12,13 +12,11 @@ channel_layer = get_channel_layer()
 sio = socketio.Server(cors_allowed_origins="*")
 app = socketio.WSGIApp(sio)
 
-sids = []
 
 @sio.event
 def connect(sid, environ):
     print("Client connected:", sid)
     message_data = "Welcome to the server!"
-    sids.append(sid)
     print(f"Sending message of type: {type(message_data)}")
     async_to_sync(channel_layer.group_send)(
         "message_group", {"type": "chat_message", "text": message_data}
@@ -47,11 +45,7 @@ def send_skull_message(sid, data):
         
     )
 
-@sio.event
-def send_model_django(sid,data):
-    print("Received model from", sid, ":", data)
-    for sid in sids:
-        sio.emit("send_model", data, to=sid)
+
 
 @sio.event
 def send_needle_messsage(sid, data):

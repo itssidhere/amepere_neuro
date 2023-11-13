@@ -11,7 +11,11 @@ import numpy as np
 import socketio
 import subprocess
 from getpass import getpass
+import environ
 
+
+
+env = environ.Env()
 
 sio = socketio.Client()
 # sio.connect("http://127.0.0.1:8001")
@@ -92,13 +96,14 @@ def segment_mri(request):
 
 def run_3d_slicer(request):
     model_name = json.loads(request.body)['model_name']
+    
     try:
         print('------------------ Running 3D Slicer ------------------')
         model = MriFile.objects.get(name=model_name)
         path = model.file.path
         OUTPUT_FILE = path.replace(".nii.gz", "_synthseg.nii.gz")
         Seg_Stl_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__)), "seg_stl.py")
-        Slicer_PATH = "/Applications/Slicer.app/Contents/MacOS/Slicer"
+        Slicer_PATH = os.getenv("SLICER_PATH")
 
         TEMP_FILE = OUTPUT_FILE.replace(".nii.gz", "_temp.nii.gz")
         temp = nib.load(OUTPUT_FILE)
@@ -143,13 +148,12 @@ def get_nifti(request):
 
 def send_model(request):
     print("Sending model")
-    model_path = "/home/sid/Documents/projects/ampere_neuro/media/mri_files/PATIENT_05_synthseg"
+    model_path = "/home/sid/Documents/projects/ampere_neuro/media/mri_files/443501_PATIENT_05_synthseg"
     evdSIM_path = "/home/sid/Documents/build-evdSIM-Desktop_Qt_5_15_2_GCC_64bit-Release/evdSIM"
     command = f"sudo -S {evdSIM_path} {model_path}".split()
     subprocess.run(
     command, stdout=subprocess.PIPE, input=getpass("password: "), encoding="ascii",
 )
-   
 
     # sio.emit("send_model_django", model_path)
     return JsonResponse({"success": True, "file": model_path})

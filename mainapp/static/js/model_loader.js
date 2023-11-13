@@ -70,7 +70,7 @@ export function getSkullOrientation() {
 
         // Split data.message using ',' and convert each element to a float
         const quants = data.message.split(",").map(item => parseFloat(item, 10));
-        // console.log(quants);
+        console.log(quants);
         if (group) {
             // camera.rotation.z = -Math.PI / 2;
             let euler = new THREE.Euler();
