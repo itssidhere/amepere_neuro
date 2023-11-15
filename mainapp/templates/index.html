@@ -304,50 +304,33 @@
 
         function startRobot()
         {
-            console.log(selectedModel)
-            fetch('/static/json/visabilities.json', { cache: "no-cache"})
-            .then((response) => response.json())
-            .then((json) => { 
-                var visabilities = json['visabilities'];
-                //find the index of all the true values
-                var true_indices = [];
-                for (var i = 0; i < visabilities.length; i++) {
-                    if (visabilities[i] == true) {
-                        true_indices.push(i);
-                    }
+            var visibilities = JSON.parse(localStorage.getItem('visibilities'));
+            //find the index of all the true values
+            var true_indices = [];
+            for (var i = 0; i < visibilities.length; i++) {
+                if (visibilities[i] == true) {
+                    true_indices.push(i);
                 }
+            }
 
-                fetch('/sendModel/', {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        model_id: selectedModel,
-                        model_names: true_indices
-                    }),
-                    headers: {
-                        'X-CSRFToken' : '{{csrf_token}}'
-                    }
-                }).then(response => {
-                    if(response.ok){
-                        console.log('Robot started successfully')
-                    }else{
-                        console.log('Error starting robot')
-                    }
-                }).catch(error => {
-                    console.log(error)
-                })
-
-        });
-           /* fetch('sendModel', {
-                method: 'GET'
-            } ).then(response => {
-                if(response.ok){
+            fetch('/sendModel/', {
+                method: 'POST',
+                body: JSON.stringify({
+                    model_id: selectedModel,
+                    model_names: true_indices
+                }),
+                headers: {
+                    'X-CSRFToken': '{{csrf_token}}'
+                }
+            }).then(response => {
+                if (response.ok) {
                     console.log('Robot started successfully')
-                }else{
+                } else {
                     console.log('Error starting robot')
                 }
             }).catch(error => {
                 console.log(error)
-            })  */
+            })
         }
 
          function load3dModel(){

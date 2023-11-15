@@ -7,7 +7,7 @@ import { Line2 } from 'line2';
 
 let colors = {};
 let names = {};
-let visabilities = {};
+let visibilities = {};
 
 fetch('/static/json/config.json')
     .then((response) => response.json())
@@ -16,11 +16,17 @@ fetch('/static/json/config.json')
         names = json['names'];
     });
 
-fetch('/static/json/visabilities.json', { cache: "no-cache" })
-    .then((response) => response.json())
-    .then((json) => {
-        visabilities = json['visabilities'];
-    });
+
+if (localStorage.getItem('visibilities') === null) {
+    fetch('/static/json/visibilities.json', { cache: "no-cache" })
+        .then((response) => response.json())
+        .then((json) => {
+            visibilities = json['visibilities'];
+            localStorage.setItem('visibilities', JSON.stringify(visibilities));
+        });
+    } else {
+        visibilities = JSON.parse(localStorage.getItem('visibilities'));
+    }
 
 var header, typedImg, typedSeg;
 var normFactor, contrast = 1.2;
@@ -462,7 +468,7 @@ function updateSliceView(index, slice) {
 
             let segValue = typedSeg[offset];
             // console.log(segValue);
-            if (visabilities[Number(segValue)] === true) {
+            if (visibilities[Number(segValue)] === true) {
                 let color = colors[Number(segValue)];
                 segmentationData[pixelOffset] = parseInt(color.substring(0, 2), 16);
                 segmentationData[pixelOffset + 1] = parseInt(color.substring(2, 4), 16);
@@ -542,7 +548,7 @@ function displaySegmentationList() {
             const icon = document.createElement('div');
             icon.className = 'fas fa-eye-slash text-xs';
 
-            if (visabilities[id] === true) {
+            if (visibilities[id] === true) {
                 button.style.backgroundColor = `#${colors[id]}`;
                 icon.style.visibility = 'hidden';
             } else {
@@ -577,53 +583,17 @@ function refreshSegmentationList(id, visability) {
 }
 
 function visabilityToggle(id) {
-    visabilities[id] = !visabilities[id];
+    visibilities[id] = !visibilities[id];
 
     visability2DToggle();
-    visability3DToggle(id, visabilities[id]);
-    refreshSegmentationList(id, visabilities[id]);
+    visability3DToggle(id, visibilities[id]);
+    refreshSegmentationList(id, visibilities[id]);
 
-    saveVisability(id, visabilities[id]);
-}
-
-function saveVisability(id, visability) {
-    fetch('/saveVisabilities/', {
-        method: 'POST',
-        body: JSON.stringify({
-            newID: id,
-            newVis: visability
-        }),
-        headers: {
-            'X-CSRFToken': getCookie('csrftoken'),
-        },
-    })
-        .then(response => response.json())
-        .then(data => {
-            console.log('Success:', data);
-        })
-        .catch((error) => {
-            console.error('Error:', error);
-        });
-}
-
-function getCookie(name) {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                break;
-            }
-        }
-    }
-    return cookieValue;
-
+    localStorage.setItem('visibilities', JSON.stringify(visibilities));
 }
 
 export function getVisability(id) {
-    return visabilities[id];
+    return visibilities[id];
 }
 
 function setEntryPoint() {

@@ -30,7 +30,6 @@ urlpatterns = [
     path("getNifti/", views.get_nifti, name="getNifti"),
     path("getStlFolder/", views.get_stl_folder, name="getStlFolder"),
     path("sendModel/", views.send_model, name="sendModel"),
-    path("saveVisabilities/", views.save_visabilities, name="saveVisabilities"),
 ]
 
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
