@@ -32,6 +32,7 @@
 </head>
 <body class="bg-gray-100 h-screen">
     <input type="file" id="hiddenMriInput" accept=".nii.gz, .nii" style="display: none;">
+    <input type="file" id="hiddenStlInput" accept=".stl" style="display: none;">
 
     <div class="bg-white shadow p-4" style="height: 8%;">
         <nav class="container mx-auto flex justify-between">
@@ -59,9 +60,9 @@
                 <i class="fas fa-cut"></i>
                 <span>Segment</span>
             </a>
-            <a href="#" class="flex items-center space-x-2" id="run3dSlicer">
+            <a href="#" class="flex items-center space-x-2" id="customSTLModel">
                 <i class="fas fa-cube"></i> 
-                <span>Run 3D Slicer</span>
+                <span>Custom STL model</span>
             </a>
             <a href="#" class="flex items-center space-x-2" id="initRobot">
                 <i class="fas fa-robot"></i>
@@ -145,11 +146,15 @@
         let selectedModel = "";
         document.getElementById('uploadMriButton').addEventListener('click', triggerFileSelect)
         document.getElementById('segmentMri').addEventListener('click', triggerSegmentMri)
-        document.getElementById('run3dSlicer').addEventListener('click', trigger3dSlicer)
+        document.getElementById('customSTLModel').addEventListener('click', triggerCustomSTLModel)
         document.getElementById('initRobot').addEventListener('click', startRobot)
 
         function triggerFileSelect(){
             document.getElementById('hiddenMriInput').click();
+        }
+
+        function triggerCustomSTLModel(){
+            document.getElementById('hiddenStlInput').click();
         }
 
         async function initialize2dNIFTI(path, segmented=false) {
@@ -209,6 +214,7 @@
                 if(response.ok){
                     console.log('File segmented successfully')
                     initialize2d(selectedModel, true);
+                    trigger3dSlicer();
                 }else{
                     console.log('Error segmenting file')
                 }
@@ -245,7 +251,13 @@
 
         document.getElementById('hiddenMriInput').addEventListener('change', function(){
             if(this.files && this.files[0]){
-                uploadFile(this.files[0])
+                uploadMriFile(this.files[0])
+            }
+        })
+
+        document.getElementById('hiddenStlInput').addEventListener('change', function(){
+            if(this.files && this.files[0]){
+                uploadStlFile(this.files[0])
             }
         })
 
@@ -272,7 +284,7 @@
             })
         }
 
-        function uploadFile(file){
+        function uploadMriFile(file){
             const formData = new FormData();
             formData.append('file', file);
 
@@ -292,6 +304,49 @@
                 console.log(error)
             })
         }
+        
+        function uploadStlFile(file){
+            const formData = new FormData();
+            formData.append('file', file);
+
+            fetch('/uploadStlFile/', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken' : '{{csrf_token}}'
+                }
+            }).then(async response => {
+                if(response.ok){
+                    // print model_path from response
+                    const data = await response.json();
+                    console.log(data['model_path']);
+                    fetch('/sendModel/'
+                    , {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            model_path: data['model_path'],
+                        }),
+                        headers: {
+                            'X-CSRFToken' : '{{csrf_token}}'
+                        }
+                    }).then(response => {
+                        if(response.ok){
+                            console.log('Robot started successfully')
+                        }else{
+                            console.log('Error starting robot')
+                        }
+                    }).catch(error => {
+                        console.log(error)
+                    }
+                    )
+
+                }else{
+                    alert('Error uploading file')
+                }
+            }).catch(error => {
+                console.log(error)
+            })
+        }
 
         function handleModelClick(model_name){
             const navBarButton = document.getElementById('navBarButton');
@@ -304,7 +359,6 @@
 
         function startRobot()
         {
-            console.log(selectedModel)
             fetch('/static/json/visabilities.json', { cache: "no-cache"})
             .then((response) => response.json())
             .then((json) => { 
@@ -337,17 +391,7 @@
                 })
 
         });
-           /* fetch('sendModel', {
-                method: 'GET'
-            } ).then(response => {
-                if(response.ok){
-                    console.log('Robot started successfully')
-                }else{
-                    console.log('Error starting robot')
-                }
-            }).catch(error => {
-                console.log(error)
-            })  */
+        
         }
 
          function load3dModel(){

@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     "ampere_neuro",
     "channels",
     "mainapp",
+    'django_cleanup.apps.CleanupConfig',
 ]
 
 MIDDLEWARE = [
