@@ -11,11 +11,7 @@ import numpy as np
 import socketio
 import subprocess
 from getpass import getpass
-import environ
 
-
-
-env = environ.Env()
 import json
 
 sio = socketio.Client()
@@ -156,13 +152,13 @@ def send_model(request):
     for model_name in model_names:
         model_arg += f" {model_path}/{model_name}.stl"
 
-    haptic_path = "/home/sid/Documents/projects/c++/chai3d-master/bin/lin-x86_64/ModelViewer"
+    haptic_path = "/home/sid/Documents/build-evdSIM-Desktop_Qt_5_15_2_GCC_64bit-Release/evdSIM"
 
-    command = f"{haptic_path}".split()
+    command = f"sudo -S {haptic_path}".split()
     command.append(model_arg.strip())
     print(command)
     subprocess.run(
-    command, stdout=subprocess.PIPE, encoding="ascii",
+    command, stdout=subprocess.PIPE,input=getpass("password: "), encoding="ascii",
     )
 
     return JsonResponse({"success": True})

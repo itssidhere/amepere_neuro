@@ -56,7 +56,6 @@ INSTALLED_APPS = [
     "ampere_neuro",
     "channels",
     "mainapp",
-    "environ"
 ]
 
 MIDDLEWARE = [
