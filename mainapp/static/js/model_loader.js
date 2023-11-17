@@ -22,6 +22,7 @@ const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setSize(container.clientWidth, container.clientHeight);
 renderer.setClearColor(0x000000, 0);  // make it transparent
 const group = new THREE.Group();
+const pivot = new THREE.Group();
 const controls = new OrbitControls(camera, renderer.domElement);
 
 const refPointGeometry = new THREE.SphereGeometry(3, 32, 32);
@@ -85,6 +86,7 @@ export function getNeedlePosition() {
 }
 
 export function getSkullOrientation() {
+    let lastAngle;
     const socket = new WebSocket('ws://' + window.location.host + '/ws/skull_message/');
     socket.onmessage = function (e) {
         const data = JSON.parse(e.data);
@@ -93,16 +95,17 @@ export function getSkullOrientation() {
         // Split data.message using ',' and convert each element to a float
         const quants = data.message.split(",").map(item => parseFloat(item, 10));
         console.log(quants);
-        if (group) {
-            // camera.rotation.z = -Math.PI / 2;
+        if (pivot) {
             let euler = new THREE.Euler();
             const quaternion = new THREE.Quaternion();
-            quaternion.set(quants[1], quants[0], quants[2], quants[3]).normalize();
-            euler.setFromQuaternion(quaternion, 'XYZ');
-            euler.reorder('ZYX');
-            euler.y += Math.PI / 2;
-            euler.x = -euler.x / 2;
-            group.setRotationFromEuler(euler);
+            quaternion.set(quants[0], quants[1], quants[2], quants[3]).normalize();
+            euler.setFromQuaternion(quaternion);
+
+            // if (euler.x == lastAngle) return;
+
+            rotateObjectAroundAxisQuaternion(pivot, new THREE.Vector3(0, 0, 1), -(euler.x - (lastAngle || 0)));
+
+            lastAngle = euler.x;
 
         }
 
@@ -149,12 +152,11 @@ export default function loadSTLModel(stlFiles) {
 
     const stlGroup = new THREE.Group();
     const referenceGroup = new THREE.Group();
-    const pivot = new THREE.Group();
-    
+
     pivot.position.set(originToBallJoint.x, originToBallJoint.y, originToBallJoint.z);
     group.position.set(ballJointToSkull.x, ballJointToSkull.y, ballJointToSkull.z);
     pivot.add(group);
-    
+
     group.add(referenceGroup);
     group.add(stlGroup);
 

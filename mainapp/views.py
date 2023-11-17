@@ -1,7 +1,7 @@
 from django.shortcuts import render
 import os
 from pathlib import Path
-from .models import MriFile
+from .models import MriFile, StlFile
 from django.http import JsonResponse
 from . import mri_seg
 import json
@@ -55,6 +55,31 @@ def uploadMriFiles(request):
             # full_path = new_file.file.path
             
             return JsonResponse({"success": True, "file": file_name})
+        else:
+            return JsonResponse({'status': 'error', 'message': 'No file upload'})
+        
+    return JsonResponse({'status': 'error', 'message': 'No file upload'})
+
+def uploadStlFiles(request):
+    if request.method == "POST":
+        uploaded_file = request.FILES.get('file')
+        if uploaded_file:
+            #append timestamp in milliseconds to the file name
+            #change the name of the uploaded file
+
+            file_name = str(datetime.datetime.now().microsecond) + "_" + uploaded_file.name 
+            uploaded_file.name = file_name
+            new_file = StlFile(file=uploaded_file, name= file_name)
+            new_file.save()
+
+            # purge old files in the STL database
+            if StlFile.objects.count() > 1:
+                oldest_file = StlFile.objects.order_by('uploaded_at').first()
+                oldest_file.delete()        
+
+            _, model_path = getStlFileFromId(file_name)
+            
+            return JsonResponse({"success": True, "model_path": str(model_path)})
         else:
             return JsonResponse({'status': 'error', 'message': 'No file upload'})
         
@@ -145,23 +170,31 @@ def get_nifti(request):
 
 def send_model(request):
     print("Sending model")
-    model_names = json.loads(request.body)['model_names']
+    body = json.loads(request.body)
+    if('model_path' not in body):
+        model_names = body['model_names']
+        _,  model_path = getSynthsegFromId(body['model_id'])
+        model_arg = ''
+        for model_name in model_names:
+            model_arg += f" {model_path}/{model_name}.stl"
     
-    _,  model_path = getSynthsegFromId(json.loads(request.body)['model_id'])
-    model_arg = ''
-    for model_name in model_names:
-        model_arg += f" {model_path}/{model_name}.stl"
+    else:
+        model_arg = body['model_path']
 
     haptic_path = "/home/sid/Documents/build-evdSIM-Desktop_Qt_5_15_2_GCC_64bit-Release/evdSIM"
-
     command = f"sudo -S {haptic_path}".split()
     command.append(model_arg.strip())
     print(command)
-    subprocess.run(
-    command, stdout=subprocess.PIPE,input=getpass("password: "), encoding="ascii",
-    )
+    try:
+        subprocess.run(
+        command, stdout=subprocess.PIPE,input=getpass("password: "), encoding="ascii")
+    except Exception as e:
+        print(e)
 
     return JsonResponse({"success": True})
+
+
+
 
 
 def get_stl_folder(request):
@@ -183,3 +216,14 @@ def getSynthsegFromId(model_name):
     
     STL_DIR = MEDIA_DIR.joinpath('mri_files').joinpath(folder_name)
     return MEDIA_LOCAL,STL_DIR
+
+def getStlFileFromId(model_name):
+    BASE_DIR = Path(__file__).resolve().parent.parent
+    # media folder
+    MEDIA_DIR = BASE_DIR / "media"
+    MEDIA_LOCAL = f"/media/stl_files/{model_name}"
+    
+    STL_DIR = MEDIA_DIR.joinpath('stl_files').joinpath(model_name)
+    return MEDIA_LOCAL,STL_DIR
+
+    

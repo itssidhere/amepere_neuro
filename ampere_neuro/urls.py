@@ -24,6 +24,7 @@ urlpatterns = [
     path("", views.index, name="index"),
     path("admin/", admin.site.urls),
     path("uploadMriFile/", views.uploadMriFiles, name="uploadMriFile"),
+    path("uploadStlFile/", views.uploadStlFiles, name="uploadStlFile"),
     path("segmentMri/", views.segment_mri, name="segmentMri"),
     path("run3dSlicer/", views.run_3d_slicer, name="run3dSlicer"),
     path("getModels/", views.get_models, name="getModels"),
