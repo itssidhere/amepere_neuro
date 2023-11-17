@@ -1,9 +1,10 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'orbit-control';
-import { visability3DToggle, setPointVisability, updatePointObject, update3DLine } from './model_loader.js'
+import { visability3DToggle, setPointVisability, updatePointObject, update3DRefLine } from './model_loader.js'
 import { LineGeometry } from 'line-geometry';
 import { LineMaterial } from 'line-material';
 import { Line2 } from 'line2';
+import { FixedSizeQueue } from './FixedSizeQueue.js';
 
 let colors = {};
 let names = {};
@@ -37,22 +38,20 @@ const containers = [];
 const cameras = [];
 const renderers = [];
 const sliders = [];
-const texture_data = [];
+const planes = [];
 const textures = [];
-const meshes = [];
-
-const segmentation_data = [];
 const segmentation_textures = [];
 
-const pointer = new THREE.Vector2();
-const raycaster = new THREE.Raycaster();
 const refPoints = [];
-const currPoint = new THREE.Vector3();
-
-const entryPoint = new THREE.Vector3();
-const targetPoint = new THREE.Vector3();
-
 const refLineMeshes = [];
+
+const actPoints = [];
+const actGeometies = [];
+const actLineMeshes = [];
+
+const currPos = new THREE.Vector3();
+const entryPos = new THREE.Vector3();
+const targetPos = new THREE.Vector3();
 
 let count = 10;
 let isSelectingPoint = false;
@@ -60,47 +59,81 @@ let isSelectingPoint = false;
 document.getElementById('btn-entry').addEventListener('click', setEntryPoint);
 document.getElementById('btn-target').addEventListener('click', setTargetPoint);
 
+function testEmitter() {
+    const point = new THREE.Vector3(Math.random() * 100, Math.random() * 100, Math.random() * 100);
+    addActualPoint(point);
+    
+    setTimeout(testEmitter, 3000);
+}
+
+setTimeout(testEmitter, 3000);
+
+export function addActualPoint(point) {
+    for (let i = 0; i < 3; i++) {
+        switch (i) {
+            case 0:
+                actPoints[i].push(new THREE.Vector3(point.x, 0, point.z));
+                break;
+            case 1:
+                actPoints[i].push(new THREE.Vector3(point.x, point.y, 0));
+                break;
+            case 2:
+                actPoints[i].push(new THREE.Vector3(0, point.y, point.z));
+                break;
+        }
+
+        actGeometies[i].setFromPoints(actPoints[i].queue);
+        actGeometies[i].NeedsUpdate = true;
+        actLineMeshes[i].visible = true;
+    }
+}
+
+
 function getMousePos(event) {
     if (!isSelectingPoint) return;
+    
     if (count > 0) {
         count--;
         return;
     }
     count = 10;
     const containerID = Number(event.target.parentElement.id.split('-')[2]);
-
     const rect = document.getElementById(`nifti-container-${containerID}`).getBoundingClientRect();
+    const raycaster = new THREE.Raycaster();
+
+    let pointer = new THREE.Vector2();
+
     pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
     raycaster.layers.set(containerID + 1);
     raycaster.setFromCamera(pointer, cameras[containerID]);
 
-    const intersects = raycaster.intersectObject(meshes[containerID]);
+    const intersects = raycaster.intersectObject(planes[containerID]);
     if (intersects.length === 0) return;
 
-    currPoint.copy(intersects[0].point);
+    currPos.copy(intersects[0].point);
 
     switch (containerID) {
         case 0:
-            currPoint.y = Math.round(sliders[0].value - (header.dims[3] - 1) / 2);
+            currPos.y = Math.round(sliders[0].value - (header.dims[3] - 1) / 2);
             break;
         case 1:
-            currPoint.z = Math.round(sliders[1].value - (header.dims[2] - 1) / 2);
+            currPos.z = Math.round(sliders[1].value - (header.dims[2] - 1) / 2);
             break;
         case 2:
-            currPoint.x = Math.round(sliders[2].value - (header.dims[1] - 1) / 2);
+            currPos.x = Math.round(sliders[2].value - (header.dims[1] - 1) / 2);
             break;
     }
 
     const newSliderValues =
         [
-            Math.round((header.dims[3] - 1) / 2 + currPoint.y),
-            Math.round((header.dims[2] - 1) / 2 + currPoint.z),
-            Math.round((header.dims[1] - 1) / 2 + currPoint.x)
+            Math.round((header.dims[3] - 1) / 2 + currPos.y),
+            Math.round((header.dims[2] - 1) / 2 + currPos.z),
+            Math.round((header.dims[1] - 1) / 2 + currPos.x)
         ];
 
-    const pointFloat = new Float32Array(currPoint);
+    const pointFloat = new Float32Array(currPos);
     // console.log(pointFloat);
     for (let i = 0; i < 3; i++) {
         if (sliders[i].value !== newSliderValues[i] && i !== containerID) {
@@ -124,10 +157,12 @@ function getMousePos(event) {
     updatePointObject(pointFloat);
 }
 
-function updateLine(entry, target) {
-    const points = [];
+function updateRefLine(entry, target) {
+    let points = [];
     points.push(entry.x, entry.y, entry.z);
     points.push(target.x, target.y, target.z);
+
+    update3DRefLine(points);
 
     for (let i = 0; i < 3; i++) {
         let tempPoints = [];
@@ -145,12 +180,11 @@ function updateLine(entry, target) {
                 tempPoints.push(0, target.y, target.z);
                 break;
         }
+
         refLineMeshes[i].geometry.setPositions(tempPoints);
         refLineMeshes[i].geometry.NeedsUpdate = true;
         refLineMeshes[i].visible = true;
     }
-
-    update3DLine(points);
 }
 
 var isMouseDown = false;
@@ -176,6 +210,8 @@ for (let i = 0; i <= 2; i++) {
     renderers.push(new THREE.WebGLRenderer({ antialias: true, alpha: true }));
     renderers[i].setSize(containers[i].clientWidth, containers[i].clientHeight);  // Adjust size to fit the grid item.
     renderers[i].setClearColor(0x000000); // Set a black background color
+
+    actPoints.push(new FixedSizeQueue(100));
 }
 
 export async function loadNIFTI2D(path, seg) {
@@ -334,16 +370,16 @@ function readNIFTI(data) {
             else if (i === 1) { width = header.dims[1]; height = header.dims[3]; }
             else { width = header.dims[2]; height = header.dims[3]; }
 
-            texture_data[i] = new Uint8Array(4 * width * height);
-            textures[i] = new THREE.DataTexture(texture_data[i], width, height);
+            const texture_data = new Uint8Array(4 * width * height);
+            textures[i] = new THREE.DataTexture(texture_data, width, height);
             const material = new THREE.MeshBasicMaterial({ map: textures[i] });
             const geometry = new THREE.PlaneGeometry(width, height);
-            meshes[i] = new THREE.Mesh(geometry, material);
-            meshes[i].layers.set(i + 1);
-            meshes[i].name = String(i);
+            planes[i] = new THREE.Mesh(geometry, material);
+            planes[i].layers.set(i + 1);
+            planes[i].name = String(i);
 
-            segmentation_data[i] = new Uint8Array(4 * width * height);
-            segmentation_textures[i] = new THREE.DataTexture(segmentation_data[i], width, height);
+            const segmentation_data = new Uint8Array(4 * width * height);
+            segmentation_textures[i] = new THREE.DataTexture(segmentation_data, width, height);
             const segmentation_material = new THREE.MeshBasicMaterial({ map: segmentation_textures[i], transparent: true, opacity: 0.5 });
             const segmentation_geometry = new THREE.PlaneGeometry(width, height);
             const segmentation_mesh = new THREE.Mesh(segmentation_geometry, segmentation_material);
@@ -365,13 +401,21 @@ function readNIFTI(data) {
             refLineMeshes[i].renderOrder = 0 || 999
             refLineMeshes[i].material.depthTest = false
 
-            // cameras[i].position.set(header.qoffset_x, 0, header.qoffset_z);
+            const actLineGeometry = new THREE.BufferGeometry();
+            const actLineMaterial = new THREE.LineBasicMaterial({ color: 0xff0000 });
+            actGeometies.push(actLineGeometry);
+            actLineMeshes.push(new THREE.Line(actLineGeometry, actLineMaterial));
+            actLineMeshes[i].layers.set(i + 1);
+            actLineMeshes[i].visible = true;
+            scene.add(actLineMeshes[i]);
+            actLineMeshes[i].renderOrder = 0 || 999
+            actLineMeshes[i].material.depthTest = false
 
             if (i === 0) {
                 const ratio = (header.pixDims[2]) / (header.pixDims[1]);
                 geometry.scale(1, ratio, 1);
                 segmentation_geometry.scale(1, ratio, 1);
-                meshes[i].rotation.x = - Math.PI / 2;
+                planes[i].rotation.x = - Math.PI / 2;
                 segmentation_mesh.rotation.x = - Math.PI / 2;
                 cameras[i].position.y = Math.sqrt(Math.pow(header.dims[1] / 2, 2) + Math.pow(header.dims[2] / 2, 2));
             }
@@ -386,7 +430,7 @@ function readNIFTI(data) {
                 const ratio = (header.pixDims[3]) / (header.pixDims[2]);
                 geometry.scale(1, ratio, 1);
                 segmentation_geometry.scale(1, ratio, 1);
-                meshes[i].rotation.y = Math.PI / 2;
+                planes[i].rotation.y = Math.PI / 2;
                 segmentation_mesh.rotation.y = Math.PI / 2;
                 cameras[i].position.x = Math.sqrt(Math.pow(header.dims[2] / 2, 2) + Math.pow(header.dims[3] / 2, 2));
             }
@@ -395,7 +439,7 @@ function readNIFTI(data) {
             // segmentation_mesh.position.set(header.qoffset_x, header.qoffset_y, header.qoffset_z);
 
             scene.add(segmentation_mesh);
-            scene.add(meshes[i]);
+            scene.add(planes[i]);
 
             sliders[i] = document.getElementById(`nifti-slider-${i}`);
             sliders[i].max = header.dims[3 - i] - 1;
@@ -483,11 +527,10 @@ function updateSliceView(index, slice) {
         }
     }
 
-    // console.log(texture_data[index].length, imageData.length)
-    texture_data[index].set(imageData);
+    textures[index].image.data.set(imageData);
     textures[index].needsUpdate = true;
 
-    segmentation_data[index].set(segmentationData);
+    segmentation_textures[index].image.data.set(segmentationData);
     segmentation_textures[index].needsUpdate = true;
 
     containers[index].addEventListener('mousedown', (evt) => { isMouseDown = true; onMouseMove(evt) });
@@ -620,14 +663,14 @@ function setPoint(isEntry) {
         btn.innerText = btn.innerText.replace('Set', 'Save');
 
         if (isEntry) {
-            currPoint.set(entryPoint.x, entryPoint.y, entryPoint.z);
+            currPos.set(entryPos.x, entryPos.y, entryPos.z);
         } else {
-            currPoint.set(targetPoint.x, targetPoint.y, targetPoint.z);
+            currPos.set(targetPos.x, targetPos.y, targetPos.z);
         }
 
-        updatePointObject(currPoint);
+        updatePointObject(currPos);
         for (let i = 0; i < 3; i++) {
-            refPoints[i].position.set(currPoint.x, currPoint.y, currPoint.z);
+            refPoints[i].position.set(currPos.x, currPos.y, currPos.z);
             switch (i) {
                 case 0:
                     refPoints[i].position.y = 0;
@@ -649,14 +692,14 @@ function setPoint(isEntry) {
         btn.innerText = btn.innerText.replace('Save', 'Set');
 
         if (isEntry) {
-            entryPoint.copy(currPoint);
-            if (targetPoint.x !== 0 || targetPoint.y !== 0 || targetPoint.z !== 0) {
-                updateLine(entryPoint, targetPoint);
+            entryPos.copy(currPos);
+            if (targetPos.x !== 0 || targetPos.y !== 0 || targetPos.z !== 0) {
+                updateRefLine(entryPos, targetPos);
             }
         } else {
-            targetPoint.copy(currPoint);
-            if (entryPoint.x !== 0 || entryPoint.y !== 0 || entryPoint.z !== 0) {
-                updateLine(entryPoint, targetPoint);
+            targetPos.copy(currPos);
+            if (entryPos.x !== 0 || entryPos.y !== 0 || entryPos.z !== 0) {
+                updateRefLine(entryPos, targetPos);
             }
         }
     }

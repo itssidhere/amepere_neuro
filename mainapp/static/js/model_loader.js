@@ -53,7 +53,7 @@ export function updatePointObject(newPos) {
     refPointMesh.position.set(newPos[0], newPos[1], newPos[2]);
 }
 
-export function update3DLine(points) {
+export function update3DRefLine(points) {
     refLineGeometry.setPositions(points);
     refLineGeometry.NeedsUpdate = true;
     refLineMesh.visible = true;
