@@ -55,18 +55,41 @@ const targetPos = new THREE.Vector3();
 
 let count = 10;
 let isSelectingPoint = false;
+let isMeasuring = false;
+let isRecording = false;
 
-document.getElementById('btn-entry').addEventListener('click', setEntryPoint);
-document.getElementById('btn-target').addEventListener('click', setTargetPoint);
+const functionBtns = new Map();
 
-function testEmitter() {
-    const point = new THREE.Vector3(Math.random() * 100, Math.random() * 100, Math.random() * 100);
-    addActualPoint(point);
-    
-    setTimeout(testEmitter, 3000);
+function initBtn()
+{
+    functionBtns.set("entry", document.getElementById('btn-entry'));
+    functionBtns.set("target", document.getElementById('btn-target'));
+    functionBtns.set("measure", document.getElementById('btn-measure'));
+    functionBtns.set("record", document.getElementById('btn-record'));
+
+    functionBtns.get("entry").addEventListener('click', () => setRefPoint(true));
+    functionBtns.get("target").addEventListener('click', () => setRefPoint(false));
+    functionBtns.get("measure").addEventListener('click', measure);
+    functionBtns.get("record").addEventListener('click', record);
+
+    functionBtns.forEach((value, key) => {
+        value.disabled = false;
+
+        value.classList.remove('bg-gray-500');
+        value.classList.add('bg-blue-500');
+        value.classList.add('hover:bg-blue-700');
+    });
 }
 
-setTimeout(testEmitter, 3000);
+
+// function testEmitter() {
+//     const point = new THREE.Vector3(Math.random() * 100, Math.random() * 100, Math.random() * 100);
+//     addActualPoint(point);
+    
+//     setTimeout(testEmitter, 3000);
+// }
+
+// setTimeout(testEmitter, 3000);
 
 export function addActualPoint(point) {
     for (let i = 0; i < 3; i++) {
@@ -154,6 +177,7 @@ function getMousePos(event) {
                 break;
         }
     }
+
     updatePointObject(pointFloat);
 }
 
@@ -227,6 +251,7 @@ export async function loadNIFTI2D(path, seg) {
     if (seg === true) {
         await readSegmentation(path.replace('.nii.gz', '_synthseg.nii.gz'));
         await readImage(path.replace('.nii.gz', '_resampled.nii.gz'));
+        initBtn();
     } else {
         await readImage(path);
     }
@@ -639,29 +664,68 @@ export function getVisability(id) {
     return visibilities[id];
 }
 
-function setEntryPoint() {
-    setPoint(true);
+function measure() {
+    isMeasuring = !isMeasuring;
+
+    alert('Measuring: ' + isMeasuring);
+
+    setBtnStatus(functionBtns.get("measure"), isMeasuring);
 }
 
-function setTargetPoint() {
-    setPoint(false);
+function record() {
+    isRecording = !isRecording;
+
+    alert('Recording: ' + isRecording);
+
+    setBtnStatus(functionBtns.get("record"), isRecording);
 }
 
-function setPoint(isEntry) {
-    const btn = isEntry ? document.getElementById('btn-entry') : document.getElementById('btn-target');
+function setBtnStatus(btn, isInProgress) {
+    if (isInProgress)
+    {
+        functionBtns.forEach((value, key) => {
+            value.disabled = true;
+
+            value.classList.remove('bg-blue-500');
+            value.classList.remove('hover:bg-blue-700');
+            value.classList.add('bg-gray-500');
+        });
+
+        btn.disabled = false;
+        btn.classList.remove('bg-gray-500')
+        btn.classList.add('bg-green-500');
+        btn.classList.add('hover:bg-green-700');
+        btn.innerText = btn.innerText.replace('Set', 'Save');
+        btn.innerText = btn.innerText.replace('Start', 'Stop');
+    } else {
+        functionBtns.forEach((value, key) => {
+            value.disabled = false;
+
+            value.classList.remove('bg-gray-500');
+            value.classList.remove('bg-green-500');
+            value.classList.remove('hover:bg-green-700');
+            value.classList.add('bg-blue-500');
+            value.classList.add('hover:bg-blue-700');
+        });
+
+        btn.innerText = btn.innerText.replace('Save', 'Set');
+        btn.innerText = btn.innerText.replace('Stop', 'Start');
+    }
+
+}
+
+function setRefPoint(isEntry) {
+    const btn = isEntry ? functionBtns.get("entry") : functionBtns.get("target");
     isSelectingPoint = !isSelectingPoint;
     setPointVisability(isSelectingPoint);
+
     for (let i = 0; i < 3; i++) {
         refPoints[i].visible = isSelectingPoint;
     }
 
-    if (isSelectingPoint) {
-        btn.classList.remove('bg-blue-500')
-        btn.classList.remove('hover:bg-blue-700');
-        btn.classList.add('bg-green-500');
-        btn.classList.add('hover:bg-green-700');
-        btn.innerText = btn.innerText.replace('Set', 'Save');
+    setBtnStatus(btn, isSelectingPoint);
 
+    if (isSelectingPoint) {
         if (isEntry) {
             currPos.set(entryPos.x, entryPos.y, entryPos.z);
         } else {
@@ -685,12 +749,6 @@ function setPoint(isEntry) {
         }
 
     } else {
-        btn.classList.remove('bg-green-500');
-        btn.classList.remove('hover:bg-green-700');
-        btn.classList.add('bg-blue-500')
-        btn.classList.add('hover:bg-blue-700');
-        btn.innerText = btn.innerText.replace('Save', 'Set');
-
         if (isEntry) {
             entryPos.copy(currPos);
             if (targetPos.x !== 0 || targetPos.y !== 0 || targetPos.z !== 0) {
