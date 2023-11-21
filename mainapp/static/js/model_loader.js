@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { STLLoader } from 'stl-loader';
 import { OrbitControls } from 'orbit-control';
-import { getVisability } from './nifti_loader.js';
+import { getVisability, addActualPoint } from './nifti_loader.js';
 import { LineGeometry } from 'line-geometry';
 import { LineMaterial } from 'line-material';
 import { Line2 } from 'line2';
@@ -33,10 +33,6 @@ const refLineGeometry = new LineGeometry();
 const refLineMaterial = new LineMaterial({ color: 0x00ff00, linewidth: 0.01 });
 const refLineMesh = new Line2(refLineGeometry, refLineMaterial);
 
-const actualLineGeometry = new LineGeometry();
-const actualLineMaterial = new LineMaterial({ color: 0x00ff00, linewidth: 0.01 });
-const actualLineMesh = new Line2(actualLineGeometry, actualLineMaterial);
-
 let colors = {};
 let names = {};
 let points = [];
@@ -54,7 +50,7 @@ export function updatePointObject(newPos) {
     refPointMesh.position.set(newPos[0], newPos[1], newPos[2]);
 }
 
-export function update3DLine(points) {
+export function update3DRefLine(points) {
     refLineGeometry.setPositions(points);
     refLineGeometry.NeedsUpdate = true;
     refLineMesh.visible = true;
@@ -78,15 +74,17 @@ export function getNeedlePosition() {
         const newPoint = new THREE.Vector3(...coords);
         // Check if points array is empty or new point is different from the last point
         if (points.length === 0 || !newPoint.equals(points[points.length - 1])) {
-            points.push(newPoint);
-            geometry.setFromPoints(points);
-            geometry.NeedsUpdate = true;
+            addActualPoint(newPoint);
+            // points.push(newPoint);
+            // geometry.setFromPoints(points);
+            // geometry.NeedsUpdate = true;
         }
     }
 }
 
 export function getSkullOrientation() {
-    let lastAngle;
+    let lastEuler = new THREE.Euler();
+    
     const socket = new WebSocket('ws://' + window.location.host + '/ws/skull_message/');
     socket.onmessage = function (e) {
         const data = JSON.parse(e.data);
@@ -94,19 +92,17 @@ export function getSkullOrientation() {
 
         // Split data.message using ',' and convert each element to a float
         const quants = data.message.split(",").map(item => parseFloat(item, 10));
-        console.log(quants);
+
         if (pivot) {
             let euler = new THREE.Euler();
             const quaternion = new THREE.Quaternion();
             quaternion.set(quants[0], quants[1], quants[2], quants[3]).normalize();
             euler.setFromQuaternion(quaternion);
 
-            // if (euler.x == lastAngle) return;
+            rotateObjectAroundAxisQuaternion(pivot, new THREE.Vector3(0, 0, 1), -(euler.x - (lastAngle.x || 0)));
+            // rotateObjectAroundAxisQuaternion(pivot, new THREE.Vector3(1, 0, 0), -(euler.y - (lastAngle.y || 0)));
 
-            rotateObjectAroundAxisQuaternion(pivot, new THREE.Vector3(0, 0, 1), -(euler.x - (lastAngle || 0)));
-
-            lastAngle = euler.x;
-
+            lastAngle = euler;
         }
 
         // Adjust camera if needed, or add more visualization controls/logic
@@ -193,11 +189,6 @@ export default function loadSTLModel(stlFiles) {
                     rotateObjectAroundAxisQuaternion(pivot, new THREE.Vector3(0, 1, 0), - Math.PI / 2);
                     rotateObjectAroundAxisQuaternion(pivot, new THREE.Vector3(0, 0, 1), Math.PI * 4 / 3);
 
-                    // test();
-                    // function test() {
-                    //     rotateObjectAroundAxisQuaternion(pivot, new THREE.Vector3(0, 0, 1), Math.PI / 180);
-                    //     setTimeout(test, 100);
-                    // }
                     controls.update();
                 }
             },
