@@ -53,7 +53,7 @@ const currPos = new THREE.Vector3();
 const entryPos = new THREE.Vector3();
 const targetPos = new THREE.Vector3();
 
-let count = 10;
+let count = 0;
 let isSelectingPoint = false;
 let isMeasuring = false;
 let isRecording = false;
@@ -119,6 +119,7 @@ function getMousePos(event) {
         count--;
         return;
     }
+
     count = 10;
     const containerID = Number(event.target.parentElement.id.split('-')[2]);
     const rect = document.getElementById(`nifti-container-${containerID}`).getBoundingClientRect();
@@ -560,7 +561,7 @@ function updateSliceView(index, slice) {
 
     containers[index].addEventListener('mousedown', (evt) => { isMouseDown = true; onMouseMove(evt) });
     containers[index].addEventListener('mousemove', onMouseMove);
-    containers[index].addEventListener('mouseup', () => isMouseDown = false);
+    containers[index].addEventListener('mouseup', () => {isMouseDown = false; count = 0});
 
     window.onresize = function () {
         cameras[index].aspect = containers[index].clientWidth / containers[index].clientHeight;
