@@ -80,13 +80,22 @@
                     <span>Segmentations</span>
                 </a>
                 <div id="left-bar" class="h-3/4 p-4 bg-gray-100 overflow-auto"></div>
-                <button id="btn-entry" class="w-full bg-blue-500 hover:bg-blue-700 text-white py-2 rounded">
-                        Set Entry Point
-                </button>
-                <br>
-                <button id="btn-target" class="w-full bg-blue-500 hover:bg-blue-700 text-white py-2 rounded">
-                        Set Target Point
-                </button>
+                <div id="functions" class="text-center">
+                    <button id="btn-entry" class="w-5/12 bg-gray-500 text-white py-2 rounded" disabled>
+                            Set Entry Point
+                    </button>
+                    <button id="btn-target" class="w-5/12 bg-gray-500 text-white py-2 rounded" disabled>
+                            Set Target Point
+                    </button>
+                    <br>
+                    <br>
+                    <button id="btn-measure" class="w-5/12 bg-gray-500 text-white py-2 rounded" disabled>
+                            Start Measuring
+                    </button>
+                    <button id="btn-record" class="w-5/12 bg-gray-500 text-white py-2 rounded" disabled>
+                            Start Recording
+                    </button>
+                </div>
             </div>
             <!-- Other components from the 3D Slicer UI... -->
         </div>
@@ -359,39 +368,33 @@
 
         function startRobot()
         {
-            fetch('/static/json/visabilities.json', { cache: "no-cache"})
-            .then((response) => response.json())
-            .then((json) => { 
-                var visabilities = json['visabilities'];
-                //find the index of all the true values
-                var true_indices = [];
-                for (var i = 0; i < visabilities.length; i++) {
-                    if (visabilities[i] == true) {
-                        true_indices.push(i);
-                    }
+            var visibilities = JSON.parse(localStorage.getItem('visibilities'));
+            //find the index of all the true values
+            var true_indices = [];
+            for (var i = 0; i < visibilities.length; i++) {
+                if (visibilities[i] == true) {
+                    true_indices.push(i);
                 }
+            }
 
-                fetch('/sendModel/', {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        model_id: selectedModel,
-                        model_names: true_indices
-                    }),
-                    headers: {
-                        'X-CSRFToken' : '{{csrf_token}}'
-                    }
-                }).then(response => {
-                    if(response.ok){
-                        console.log('Robot started successfully')
-                    }else{
-                        console.log('Error starting robot')
-                    }
-                }).catch(error => {
-                    console.log(error)
-                })
-
-        });
-        
+            fetch('/sendModel/', {
+                method: 'POST',
+                body: JSON.stringify({
+                    model_id: selectedModel,
+                    model_names: true_indices
+                }),
+                headers: {
+                    'X-CSRFToken': '{{csrf_token}}'
+                }
+            }).then(response => {
+                if (response.ok) {
+                    console.log('Robot started successfully')
+                } else {
+                    console.log('Error starting robot')
+                }
+            }).catch(error => {
+                console.log(error)
+            })
         }
 
          function load3dModel(){
