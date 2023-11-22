@@ -72,6 +72,7 @@ export function getNeedlePosition() {
         // Split data.message using ',' and convert each element to a float
         const coords = data.message.split(",").map(item => parseFloat(item, 10));
         const newPoint = new THREE.Vector3(...coords);
+        newPoint.multiplyScalar(500);
         // Check if points array is empty or new point is different from the last point
         if (points.length === 0 || !newPoint.equals(points[points.length - 1])) {
             addActualPoint(newPoint);
@@ -84,7 +85,7 @@ export function getNeedlePosition() {
 
 export function getSkullOrientation() {
     let lastEuler = new THREE.Euler();
-    
+
     const socket = new WebSocket('ws://' + window.location.host + '/ws/skull_message/');
     socket.onmessage = function (e) {
         const data = JSON.parse(e.data);
