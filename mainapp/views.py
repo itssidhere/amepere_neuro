@@ -171,19 +171,24 @@ def get_nifti(request):
 def send_model(request):
     print("Sending model")
     body = json.loads(request.body)
+    venctricle_arg = ''
     if('model_path' not in body):
         model_names = body['model_names']
         _,  model_path = getSynthsegFromId(body['model_id'])
-        model_arg = ''
+        parenchyma_arg = ''
         for model_name in model_names:
-            model_arg += f" {model_path}/{model_name}.stl"
+            if int(model_name) in (4, 43):
+                venctricle_arg += f" {model_path}/{model_name}.stl"
+            else:
+                parenchyma_arg += f" {model_path}/{model_name}.stl"
     
     else:
-        model_arg = body['model_path']
+        parenchyma_arg = body['model_path']
 
     haptic_path = "/home/sid/Documents/build-evdSIM-Desktop_Qt_5_15_2_GCC_64bit-Release/evdSIM"
-    command = f"sudo -S {haptic_path}".split()
-    command.append(model_arg.strip())
+    command = ["sudo", "-S", haptic_path]
+    command.append(venctricle_arg.strip())
+    command.append(parenchyma_arg.strip())
     print(command)
     try:
         subprocess.run(

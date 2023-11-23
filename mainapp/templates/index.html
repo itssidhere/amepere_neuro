@@ -154,6 +154,7 @@
     <script type="text/javascript">
         let selectedModel = "";
         document.getElementById('uploadMriButton').addEventListener('click', triggerFileSelect)
+        
         document.getElementById('segmentMri').addEventListener('click', triggerSegmentMri)
         document.getElementById('customSTLModel').addEventListener('click', triggerCustomSTLModel)
         document.getElementById('initRobot').addEventListener('click', startRobot)
@@ -201,6 +202,7 @@
                 item.className = 'block px-4 py-2 text-sm leading-5 text-gray-700 hover:bg-gray-100 focus:outline-none focus:bg-gray-100';
                 item.textContent = model.name;
                 item.onclick = function() { handleModelClick(model.name); };
+          
                 navbar.appendChild(item);
             });
         }
@@ -361,7 +363,7 @@
             const navBarButton = document.getElementById('navBarButton');
             selectedModel = model_name;
             //change the inner html of the button to the selected model and a checkmark
-            navBarButton.innerHTML = `<i class="fas fa-check"></i> <span>${model_name}</span>`;
+            navBarButton.innerHTML = `<i class="fas fa-check selectedModel"></i> <span>${model_name}</span>`;
             console.log(model_name)
             initialize2d(model_name, false)
         }
