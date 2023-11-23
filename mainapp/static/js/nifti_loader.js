@@ -538,7 +538,7 @@ function updateSliceView(index, slice) {
 
             let segValue = typedSeg[offset];
             // console.log(segValue);
-            if (visibilities[Number(segValue)] === true) {
+            if (visibilities[Number(segValue)] === true && Number(segValue) !== 0) {
                 let color = colors[Number(segValue)];
                 segmentationData[pixelOffset] = parseInt(color.substring(0, 2), 16);
                 segmentationData[pixelOffset + 1] = parseInt(color.substring(2, 4), 16);
@@ -591,6 +591,8 @@ function displaySegmentationList() {
     const leftBar = document.getElementById('left-bar');
     leftBar.innerHTML = '';
 
+    leftBar.appendChild(createSegmentDiv(0));
+
     let segmentItems = [];
 
     let existingSegments = [];
@@ -599,35 +601,7 @@ function displaySegmentationList() {
         if (typedSeg[i] == 0 || existingSegments.includes(typedSeg[i])) continue;
         {
             const id = Number(typedSeg[i]);
-            const segmentDiv = document.createElement('div');
-            segmentDiv.className = 'segment';
-            segmentDiv.id = `segment-${id}`;
-            segmentDiv.style = 'display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;';
-
-            const span = document.createElement('span');
-            span.style.fontSize = '14px';
-            span.innerText = id + ': ' + names[id];
-
-            const button = document.createElement('button');
-            button.className = 'segment-button flex items-center justify-center';
-            button.id = `segment-button-${id}`;
-            button.style = `height:20px; width:20px; border: 1px solid black;`;
-            button.addEventListener('click', () => visabilityToggle(id));
-
-            const icon = document.createElement('div');
-            icon.className = 'fas fa-eye-slash text-xs';
-
-            if (visibilities[id] === true) {
-                button.style.backgroundColor = `#${colors[id]}`;
-                icon.style.visibility = 'hidden';
-            } else {
-                button.style.backgroundColor = '#dddddd';
-                icon.style.visibility = 'visible';
-            }
-
-            segmentDiv.appendChild(span);
-            segmentDiv.appendChild(button);
-            button.appendChild(icon);
+            const segmentDiv = createSegmentDiv(id);
 
             segmentItems[id] = segmentDiv;
             existingSegments.push(typedSeg[i]);
@@ -637,6 +611,40 @@ function displaySegmentationList() {
     segmentItems.forEach(segment => {
         leftBar.appendChild(segment);
     });
+}
+
+function createSegmentDiv(id) {
+    const segmentDiv = document.createElement('div');
+    segmentDiv.className = 'segment';
+    segmentDiv.id = `segment-${id}`;
+    segmentDiv.style = 'display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;';
+
+    const span = document.createElement('span');
+    span.style.fontSize = '14px';
+    span.innerText = id + ': ' + names[id];
+
+    const button = document.createElement('button');
+    button.className = 'segment-button flex items-center justify-center';
+    button.id = `segment-button-${id}`;
+    button.style = `height:20px; width:20px; border: 1px solid black;`;
+    button.addEventListener('click', () => visabilityToggle(id));
+
+    const icon = document.createElement('div');
+    icon.className = 'fas fa-eye-slash text-xs';
+
+    if (visibilities[id] === true) {
+        button.style.backgroundColor = `#${colors[id]}`;
+        icon.style.visibility = 'hidden';
+    } else {
+        button.style.backgroundColor = '#dddddd';
+        icon.style.visibility = 'visible';
+    }
+
+    segmentDiv.appendChild(span);
+    segmentDiv.appendChild(button);
+    button.appendChild(icon);
+
+    return segmentDiv;
 }
 
 function refreshSegmentationList(id, visability) {
