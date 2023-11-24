@@ -18,8 +18,8 @@ renderer.setClearColor(0x000000, 0);  // make it transparent
 const brainGroup = new THREE.Group();
 const controls = new OrbitControls(camera, renderer.domElement);
 
-const ballJointGeometry = new THREE.SphereGeometry(6, 32, 32);
-const ballJointMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+const ballJointGeometry = new THREE.SphereGeometry(10, 32, 32);
+const ballJointMaterial = new THREE.MeshBasicMaterial({ color: 0xb7410e });
 const ballJointMesh = new THREE.Mesh(ballJointGeometry, ballJointMaterial);
 
 const needleGeometry = new THREE.SphereGeometry(6, 32, 32);
@@ -33,6 +33,10 @@ const refPointMesh = new THREE.Mesh(refPointGeometry, refPointMaterial);
 const refLineGeometry = new LineGeometry();
 const refLineMaterial = new LineMaterial({ color: 0x00ff00, linewidth: 0.01 });
 const refLineMesh = new Line2(refLineGeometry, refLineMaterial);
+
+const meaLineGeometry = new LineGeometry();
+const meaLineMaterial = new LineMaterial({ color: 0x0000ff, linewidth: 0.01 });
+const meaLineMesh = new Line2(meaLineGeometry, meaLineMaterial);
 
 let colors = {};
 let points = [];
@@ -54,11 +58,26 @@ export function update3DPointObject(newPos) {
     refPointMesh.position.set(newPos[0], newPos[1], newPos[2]);
 }
 
-export function update3DRefLine(points) {
-    refLineGeometry.setPositions(points);
-    refLineGeometry.NeedsUpdate = true;
-    refLineMesh.visible = true;
+export function update3DLine(points, isRefLine) {
+    if (isRefLine) {
+        refLineGeometry.setPositions(points);
+        refLineGeometry.NeedsUpdate = true;
+        refLineMesh.visible = true;
+    } else {
+        meaLineGeometry.setPositions(points);
+        meaLineGeometry.NeedsUpdate = true;
+        meaLineMesh.visible = true;
+    }
 }
+
+export function hide3DLine(isRefLine) {
+    if (isRefLine) {
+        refLineMesh.visible = false;
+    } else {
+        meaLineMesh.visible = false;
+    }
+}
+
 
 export function set3DSegVisability(id, visability) {
     let segment = scene.getObjectByName(id.toString());
@@ -195,6 +214,8 @@ export default function loadSTLModel(stlFiles) {
     refPointMesh.visible = false;
     referenceGroup.add(refLineMesh);
     refLineMesh.visible = false;
+    referenceGroup.add(meaLineMesh);
+    meaLineMesh.visible = false;
 
     const material = new THREE.LineBasicMaterial({ color: 0xff0000 });
     const line = new THREE.Line(geometry, material);
@@ -264,7 +285,7 @@ function getSkulltoBallJointQuaternion() {
 }
 
 function getSkulltoBallJointTranslation() {
-    const translation = new THREE.Vector3(0.12, 0.12, 0);
+    const translation = new THREE.Vector3(0.06, 0.12, 0);
     translation.multiplyScalar(1000);
     return translation;
 }
