@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'orbit-control';
-import { visability3DToggle, setPointVisability, updatePointObject, update3DRefLine } from './model_loader.js'
+import { set3DSegVisability, set3DPointVisability, update3DPointObject, update3DRefLine } from './model_loader.js'
 import { LineGeometry } from 'line-geometry';
 import { LineMaterial } from 'line-material';
 import { Line2 } from 'line2';
@@ -42,20 +42,22 @@ const planes = [];
 const textures = [];
 const segmentation_textures = [];
 
-const refPoints = [];
 const refLineMeshes = [];
+const meaLineMeshes = [];
 
 const actPoints = [];
 const actGeometies = [];
 const actLineMeshes = [];
 
-const currPos = new THREE.Vector3();
+const visPoints = [];
+const currPointPos = new THREE.Vector3();
+
 const entryPos = new THREE.Vector3();
 const targetPos = new THREE.Vector3();
 
 let count = 0;
 let isSelectingPoint = false;
-let isMeasuring = false;
+let mesauringStatus = 0;
 let isRecording = false;
 
 const functionBtns = new Map();
@@ -66,11 +68,13 @@ function initBtn()
     functionBtns.set("target", document.getElementById('btn-target'));
     functionBtns.set("measure", document.getElementById('btn-measure'));
     functionBtns.set("record", document.getElementById('btn-record'));
+    functionBtns.set("record-display", document.getElementById('btn-record-display'));
 
     functionBtns.get("entry").addEventListener('click', () => setRefPoint(true));
     functionBtns.get("target").addEventListener('click', () => setRefPoint(false));
     functionBtns.get("measure").addEventListener('click', measure);
     functionBtns.get("record").addEventListener('click', record);
+    functionBtns.get("record-display").addEventListener('click', displayRecord);
 
     functionBtns.forEach((value, key) => {
         value.disabled = false;
@@ -113,7 +117,7 @@ export function addActualPoint(point) {
 
 
 function getMousePos(event) {
-    if (!isSelectingPoint) return;
+    if (!isSelectingPoint && !(mesauringStatus == 1 || mesauringStatus == 2)) return;
     
     if (count > 0) {
         count--;
@@ -136,28 +140,28 @@ function getMousePos(event) {
     const intersects = raycaster.intersectObject(planes[containerID]);
     if (intersects.length === 0) return;
 
-    currPos.copy(intersects[0].point);
+    currPointPos.copy(intersects[0].point);
 
     switch (containerID) {
         case 0:
-            currPos.y = Math.round(sliders[0].value - (header.dims[3] - 1) / 2);
+            currPointPos.y = Math.round(sliders[0].value - (header.dims[3] - 1) / 2);
             break;
         case 1:
-            currPos.z = Math.round(sliders[1].value - (header.dims[2] - 1) / 2);
+            currPointPos.z = Math.round(sliders[1].value - (header.dims[2] - 1) / 2);
             break;
         case 2:
-            currPos.x = Math.round(sliders[2].value - (header.dims[1] - 1) / 2);
+            currPointPos.x = Math.round(sliders[2].value - (header.dims[1] - 1) / 2);
             break;
     }
 
     const newSliderValues =
         [
-            Math.round((header.dims[3] - 1) / 2 + currPos.y),
-            Math.round((header.dims[2] - 1) / 2 + currPos.z),
-            Math.round((header.dims[1] - 1) / 2 + currPos.x)
+            Math.round((header.dims[3] - 1) / 2 + currPointPos.y),
+            Math.round((header.dims[2] - 1) / 2 + currPointPos.z),
+            Math.round((header.dims[1] - 1) / 2 + currPointPos.x)
         ];
 
-    const pointFloat = new Float32Array(currPos);
+    const pointFloat = new Float32Array(currPointPos);
     // console.log(pointFloat);
     for (let i = 0; i < 3; i++) {
         if (sliders[i].value !== newSliderValues[i] && i !== containerID) {
@@ -165,21 +169,21 @@ function getMousePos(event) {
             sliders[i].oninput();
         }
 
-        refPoints[i].position.set(pointFloat[0], pointFloat[1], pointFloat[2]);
+        visPoints[i].position.set(pointFloat[0], pointFloat[1], pointFloat[2]);
         switch (i) {
             case 0:
-                refPoints[i].position.y = 0;
+                visPoints[i].position.y = 0;
                 break;
             case 1:
-                refPoints[i].position.z = 0;
+                visPoints[i].position.z = 0;
                 break;
             case 2:
-                refPoints[i].position.x = 0;
+                visPoints[i].position.x = 0;
                 break;
         }
     }
 
-    updatePointObject(pointFloat);
+    update3DPointObject(pointFloat);
 }
 
 function updateRefLine(entry, target) {
@@ -413,10 +417,10 @@ function readNIFTI(data) {
 
             const refPointGeometry = new THREE.SphereGeometry(3, 32, 32);
             const refPointMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-            refPoints.push(new THREE.Mesh(refPointGeometry, refPointMaterial));
-            refPoints[i].layers.set(i + 1);
-            refPoints[i].visible = false;
-            scene.add(refPoints[i]);
+            visPoints.push(new THREE.Mesh(refPointGeometry, refPointMaterial));
+            visPoints[i].layers.set(i + 1);
+            visPoints[i].visible = false;
+            scene.add(visPoints[i]);
 
             const refLineGeometry = new LineGeometry();
             const refLineMaterial = new LineMaterial({ color: 0x00ff00, linewidth: 0.01 });
@@ -426,6 +430,15 @@ function readNIFTI(data) {
             scene.add(refLineMeshes[i]);
             refLineMeshes[i].renderOrder = 0 || 999
             refLineMeshes[i].material.depthTest = false
+
+            const meaLineGeometry = new LineGeometry();
+            const meaLineMaterial = new LineMaterial({ color: 0x0000ff, linewidth: 0.01 });
+            meaLineMeshes.push(new Line2(meaLineGeometry, meaLineMaterial));
+            meaLineMeshes[i].layers.set(i + 1);
+            meaLineMeshes[i].visible = false;
+            scene.add(meaLineMeshes[i]);
+            meaLineMeshes[i].renderOrder = 0 || 999
+            meaLineMeshes[i].material.depthTest = false
 
             const actLineGeometry = new THREE.BufferGeometry();
             const actLineMaterial = new THREE.LineBasicMaterial({ color: 0xff0000 });
@@ -538,7 +551,7 @@ function updateSliceView(index, slice) {
 
             let segValue = typedSeg[offset];
             // console.log(segValue);
-            if (visibilities[Number(segValue)] === true) {
+            if (visibilities[Number(segValue)] === true && Number(segValue) !== 0) {
                 let color = colors[Number(segValue)];
                 segmentationData[pixelOffset] = parseInt(color.substring(0, 2), 16);
                 segmentationData[pixelOffset + 1] = parseInt(color.substring(2, 4), 16);
@@ -583,13 +596,12 @@ function refreshDisplay() {
     }
 }
 
-function visability2DToggle() {
-    refreshDisplay();
-}
 
 function displaySegmentationList() {
     const leftBar = document.getElementById('left-bar');
     leftBar.innerHTML = '';
+
+    leftBar.appendChild(createSegmentDiv(0));
 
     let segmentItems = [];
 
@@ -599,35 +611,7 @@ function displaySegmentationList() {
         if (typedSeg[i] == 0 || existingSegments.includes(typedSeg[i])) continue;
         {
             const id = Number(typedSeg[i]);
-            const segmentDiv = document.createElement('div');
-            segmentDiv.className = 'segment';
-            segmentDiv.id = `segment-${id}`;
-            segmentDiv.style = 'display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;';
-
-            const span = document.createElement('span');
-            span.style.fontSize = '14px';
-            span.innerText = id + ': ' + names[id];
-
-            const button = document.createElement('button');
-            button.className = 'segment-button flex items-center justify-center';
-            button.id = `segment-button-${id}`;
-            button.style = `height:20px; width:20px; border: 1px solid black;`;
-            button.addEventListener('click', () => visabilityToggle(id));
-
-            const icon = document.createElement('div');
-            icon.className = 'fas fa-eye-slash text-xs';
-
-            if (visibilities[id] === true) {
-                button.style.backgroundColor = `#${colors[id]}`;
-                icon.style.visibility = 'hidden';
-            } else {
-                button.style.backgroundColor = '#dddddd';
-                icon.style.visibility = 'visible';
-            }
-
-            segmentDiv.appendChild(span);
-            segmentDiv.appendChild(button);
-            button.appendChild(icon);
+            const segmentDiv = createSegmentDiv(id);
 
             segmentItems[id] = segmentDiv;
             existingSegments.push(typedSeg[i]);
@@ -637,6 +621,40 @@ function displaySegmentationList() {
     segmentItems.forEach(segment => {
         leftBar.appendChild(segment);
     });
+}
+
+function createSegmentDiv(id) {
+    const segmentDiv = document.createElement('div');
+    segmentDiv.className = 'segment';
+    segmentDiv.id = `segment-${id}`;
+    segmentDiv.style = 'display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;';
+
+    const span = document.createElement('span');
+    span.style.fontSize = '14px';
+    span.innerText = id + ': ' + names[id];
+
+    const button = document.createElement('button');
+    button.className = 'segment-button flex items-center justify-center';
+    button.id = `segment-button-${id}`;
+    button.style = `height:20px; width:20px; border: 1px solid black;`;
+    button.addEventListener('click', () => set2DSegVisability(id));
+
+    const icon = document.createElement('div');
+    icon.className = 'fas fa-eye-slash text-xs';
+
+    if (visibilities[id] === true) {
+        button.style.backgroundColor = `#${colors[id]}`;
+        icon.style.visibility = 'hidden';
+    } else {
+        button.style.backgroundColor = '#dddddd';
+        icon.style.visibility = 'visible';
+    }
+
+    segmentDiv.appendChild(span);
+    segmentDiv.appendChild(button);
+    button.appendChild(icon);
+
+    return segmentDiv;
 }
 
 function refreshSegmentationList(id, visability) {
@@ -651,11 +669,10 @@ function refreshSegmentationList(id, visability) {
     }
 }
 
-function visabilityToggle(id) {
+function set2DSegVisability(id) {
     visibilities[id] = !visibilities[id];
-
-    visability2DToggle();
-    visability3DToggle(id, visibilities[id]);
+    refreshDisplay();
+    set3DSegVisability(id, visibilities[id]);
     refreshSegmentationList(id, visibilities[id]);
 
     localStorage.setItem('visibilities', JSON.stringify(visibilities));
@@ -665,12 +682,29 @@ export function getVisability(id) {
     return visibilities[id];
 }
 
+function setPointVisability(inProgress, color) {
+    for (let i = 0; i < 3; i++) {
+        visPoints[i].visible = inProgress;
+        visPoints[i].material.color.setHex(color);
+    }
+
+    set3DPointVisability(inProgress, color);
+}
+
 function measure() {
-    isMeasuring = !isMeasuring;
+    mesauringStatus = (mesauringStatus + 1) % 4;
 
-    alert('Measuring: ' + isMeasuring);
+    alert('Measuring: ' + mesauringStatus);
 
-    setBtnStatus(functionBtns.get("measure"), isMeasuring);
+    let btn = functionBtns.get("measure");
+
+    const isMeasuring = mesauringStatus == 1 || mesauringStatus == 2;
+
+    setBtnStatus(btn, isMeasuring);
+
+    setPointVisability(isMeasuring, 0x0000ff);
+
+    btn.innerText = mesauringStatus == 0 ? "Start Measuring" : mesauringStatus == 1 ? "Save Start Point" : mesauringStatus == 2 ? "Save End Point" : "Clear Measurement";
 }
 
 function record() {
@@ -678,12 +712,68 @@ function record() {
 
     alert('Recording: ' + isRecording);
 
-    setBtnStatus(functionBtns.get("record"), isRecording);
+    let btn = functionBtns.get("record");
+
+    setBtnStatus(btn, isRecording);
+
+    btn.innerText = isRecording ? btn.innerText.replace('Start', 'Stop') : btn.innerText.replace('Stop', 'Start');
 }
 
-function setBtnStatus(btn, isInProgress) {
-    if (isInProgress)
-    {
+function displayRecord ()
+{
+    alert('Displaying recorded data');
+}
+
+function setRefPoint(isEntry) {
+    const btn = isEntry ? functionBtns.get("entry") : functionBtns.get("target");
+    isSelectingPoint = !isSelectingPoint;
+
+    setPointVisability(isSelectingPoint, 0x00ff00);
+
+    setBtnStatus(btn, isSelectingPoint);
+
+    btn.innerText = isSelectingPoint ? btn.innerText.replace('Set', 'Save') : btn.innerText.replace('Save', 'Set');
+
+    if (isSelectingPoint) {
+        if (isEntry) {
+            currPointPos.set(entryPos.x, entryPos.y, entryPos.z);
+        } else {
+            currPointPos.set(targetPos.x, targetPos.y, targetPos.z);
+        }
+
+        update3DPointObject(currPointPos);
+        for (let i = 0; i < 3; i++) {
+            visPoints[i].position.set(currPointPos.x, currPointPos.y, currPointPos.z);
+            switch (i) {
+                case 0:
+                    visPoints[i].position.y = 0;
+                    break;
+                case 1:
+                    visPoints[i].position.z = 0;
+                    break;
+                case 2:
+                    visPoints[i].position.x = 0;
+                    break;
+            }
+        }
+
+    } else {
+        if (isEntry) {
+            entryPos.copy(currPointPos);
+            if (targetPos.x !== 0 || targetPos.y !== 0 || targetPos.z !== 0) {
+                updateRefLine(entryPos, targetPos);
+            }
+        } else {
+            targetPos.copy(currPointPos);
+            if (entryPos.x !== 0 || entryPos.y !== 0 || entryPos.z !== 0) {
+                updateRefLine(entryPos, targetPos);
+            }
+        }
+    }
+}
+
+function setBtnStatus(btn, inProgress) {
+    if (inProgress) {
         functionBtns.forEach((value, key) => {
             value.disabled = true;
 
@@ -696,8 +786,6 @@ function setBtnStatus(btn, isInProgress) {
         btn.classList.remove('bg-gray-500')
         btn.classList.add('bg-green-500');
         btn.classList.add('hover:bg-green-700');
-        btn.innerText = btn.innerText.replace('Set', 'Save');
-        btn.innerText = btn.innerText.replace('Start', 'Stop');
     } else {
         functionBtns.forEach((value, key) => {
             value.disabled = false;
@@ -708,58 +796,6 @@ function setBtnStatus(btn, isInProgress) {
             value.classList.add('bg-blue-500');
             value.classList.add('hover:bg-blue-700');
         });
-
-        btn.innerText = btn.innerText.replace('Save', 'Set');
-        btn.innerText = btn.innerText.replace('Stop', 'Start');
     }
 
-}
-
-function setRefPoint(isEntry) {
-    const btn = isEntry ? functionBtns.get("entry") : functionBtns.get("target");
-    isSelectingPoint = !isSelectingPoint;
-    setPointVisability(isSelectingPoint);
-
-    for (let i = 0; i < 3; i++) {
-        refPoints[i].visible = isSelectingPoint;
-    }
-
-    setBtnStatus(btn, isSelectingPoint);
-
-    if (isSelectingPoint) {
-        if (isEntry) {
-            currPos.set(entryPos.x, entryPos.y, entryPos.z);
-        } else {
-            currPos.set(targetPos.x, targetPos.y, targetPos.z);
-        }
-
-        updatePointObject(currPos);
-        for (let i = 0; i < 3; i++) {
-            refPoints[i].position.set(currPos.x, currPos.y, currPos.z);
-            switch (i) {
-                case 0:
-                    refPoints[i].position.y = 0;
-                    break;
-                case 1:
-                    refPoints[i].position.z = 0;
-                    break;
-                case 2:
-                    refPoints[i].position.x = 0;
-                    break;
-            }
-        }
-
-    } else {
-        if (isEntry) {
-            entryPos.copy(currPos);
-            if (targetPos.x !== 0 || targetPos.y !== 0 || targetPos.z !== 0) {
-                updateRefLine(entryPos, targetPos);
-            }
-        } else {
-            targetPos.copy(currPos);
-            if (entryPos.x !== 0 || entryPos.y !== 0 || entryPos.z !== 0) {
-                updateRefLine(entryPos, targetPos);
-            }
-        }
-    }
 }
