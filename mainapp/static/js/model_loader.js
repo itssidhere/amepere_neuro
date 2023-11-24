@@ -94,15 +94,15 @@ export function getNeedlePosition() {
         const data = JSON.parse(e.data);
         // Split data.message using ',' and convert each element to a float
         const coords = data.message.split(",").map(item => parseFloat(item, 10));
-        const newPoint = new THREE.Vector3(...coords);
+        let newPoint = new THREE.Vector3(...coords);
         // Check if points array is empty or new point is different from the last point
         if (points.length === 0 || !newPoint.equals(points[points.length - 1])) {
+            // console.log(newPoint.x, newPoint.y, newPoint.z)
+            newPoint = convertChai3Dto3DPosition(newPoint);
+            needleMesh.position.set(newPoint.x, newPoint.y, newPoint.z);
+
             const converted = convert3Dto2DPosition(newPoint);
             addActualPoint(converted);
-            needleMesh.position.set(newPoint.x, newPoint.y, newPoint.z);
-            // points.push(newPoint);
-            // geometry.setFromPoints(points);
-            // geometry.NeedsUpdate = true;
         }
     }
 }
@@ -129,12 +129,14 @@ export function getSkullOrientation() {
 // let t = 0;
 
 // function testNeedle() {
-//     t = t + 10;
-//     const newPoint = new THREE.Vector3(512.0137790623492 + t, 179.23385922225197 + t, 32.00000000000003 + t);
+//     t = t + 0.01;
+//     const newPoint = new THREE.Vector3(0.38 + t, 0 + t / 2, 0 + t / 10);
+//     newPoint.multiplyScalar(1000);
 //     needleMesh.position.set(newPoint.x, newPoint.y, newPoint.z);
-//     newPoint.multiplyScalar(0.001);
+
 //     const converted = convert3Dto2DPosition(newPoint);
 //     addActualPoint(converted);
+
 //     setTimeout(testNeedle, 1000);
 // }
 
@@ -293,15 +295,21 @@ function getSkulltoBallJointTranslation() {
 function convertBallJointRotationtoSkullRotation(ballJointRotation) {
     const euler = new THREE.Euler();
     euler.setFromQuaternion(ballJointRotation);
-    euler.set(euler.z, euler.y, euler.x);
+    euler.set(euler.z, euler.y, - euler.x);
     const quaternion = new THREE.Quaternion();
     quaternion.setFromEuler(euler);
     return quaternion;
 }
 
+function convertChai3Dto3DPosition(position) {
+    const newPosition = new THREE.Vector3(position.x, position.z, - position.y);
+    newPosition.multiplyScalar(1000);
+    return newPosition;
+
+}
+
 function convert3Dto2DPosition(position) {
     let newPosition = new THREE.Vector3(position.x, position.y, position.z);
-    newPosition.multiplyScalar(1000);
     newPosition = brainGroup.worldToLocal(newPosition);
     return newPosition;
 }
