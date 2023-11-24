@@ -42,16 +42,16 @@ fetch('/static/json/config.json')
     .then((json) => { colors = json['colors'];});
 
 
-export function setPointVisability(visability) {
+export function set3DPointVisability(visability, color = null) {
     refPointMesh.visible = visability;
-}
-
-export function updatePointObject(newPos, color = null) {
-    refPointMesh.position.set(newPos[0], newPos[1], newPos[2]);
 
     if (color !== null) {
         refPointMaterial.color.setHex(color);
     }
+}
+
+export function update3DPointObject(newPos) {
+    refPointMesh.position.set(newPos[0], newPos[1], newPos[2]);
 }
 
 export function update3DRefLine(points) {
@@ -60,7 +60,7 @@ export function update3DRefLine(points) {
     refLineMesh.visible = true;
 }
 
-export function visability3DToggle(id, visability) {
+export function set3DSegVisability(id, visability) {
     let segment = scene.getObjectByName(id.toString());
 
     if (segment !== undefined) {
