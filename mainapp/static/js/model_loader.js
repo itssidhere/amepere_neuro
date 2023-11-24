@@ -209,7 +209,7 @@ export default function loadSTLModel(stlFiles) {
             `${fileName}`,
             function (geometry) {
                 const currSeg = Number(fileName.replace(/^.*(\\|\/|\:)/, '').split('.')[0]);
-                const material = new THREE.MeshStandardMaterial({ color: Number("0x" + colors[currSeg]) });
+                const material = new THREE.MeshStandardMaterial({ color: Number("0x" + colors[currSeg]), transparent: true, opacity: 0.8 });
                 const mesh = new THREE.Mesh(geometry, material);
                 mesh.name = String(currSeg);
                 stlGroup.add(mesh);

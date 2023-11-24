@@ -55,7 +55,7 @@ const targetPos = new THREE.Vector3();
 
 let count = 0;
 let isSelectingPoint = false;
-let isMeasuring = false;
+let mesauringStatus = 0;
 let isRecording = false;
 
 const functionBtns = new Map();
@@ -66,11 +66,13 @@ function initBtn()
     functionBtns.set("target", document.getElementById('btn-target'));
     functionBtns.set("measure", document.getElementById('btn-measure'));
     functionBtns.set("record", document.getElementById('btn-record'));
+    functionBtns.set("record-display", document.getElementById('btn-record-display'));
 
     functionBtns.get("entry").addEventListener('click', () => setRefPoint(true));
     functionBtns.get("target").addEventListener('click', () => setRefPoint(false));
     functionBtns.get("measure").addEventListener('click', measure);
     functionBtns.get("record").addEventListener('click', record);
+    functionBtns.get("record-display").addEventListener('click', displayRecord);
 
     functionBtns.forEach((value, key) => {
         value.disabled = false;
@@ -674,11 +676,15 @@ export function getVisability(id) {
 }
 
 function measure() {
-    isMeasuring = !isMeasuring;
+    mesauringStatus = (mesauringStatus + 1) % 4;
 
-    alert('Measuring: ' + isMeasuring);
+    alert('Measuring: ' + mesauringStatus);
 
-    setBtnStatus(functionBtns.get("measure"), isMeasuring);
+    let btn = functionBtns.get("measure");
+
+    setBtnStatus(btn, mesauringStatus == 1 || mesauringStatus == 2);
+
+    btn.innerText = mesauringStatus == 0 ? "Start Measuring" : mesauringStatus == 1 ? "Save Start Point" : mesauringStatus == 2 ? "Save End Point" : "Clear Measurement";
 }
 
 function record() {
@@ -686,41 +692,16 @@ function record() {
 
     alert('Recording: ' + isRecording);
 
-    setBtnStatus(functionBtns.get("record"), isRecording);
+    let btn = functionBtns.get("record");
+
+    setBtnStatus(btn, isRecording);
+
+    btn.innerText = isRecording ? btn.innerText.replace('Start', 'Stop') : btn.innerText.replace('Stop', 'Start');
 }
 
-function setBtnStatus(btn, isInProgress) {
-    if (isInProgress)
-    {
-        functionBtns.forEach((value, key) => {
-            value.disabled = true;
-
-            value.classList.remove('bg-blue-500');
-            value.classList.remove('hover:bg-blue-700');
-            value.classList.add('bg-gray-500');
-        });
-
-        btn.disabled = false;
-        btn.classList.remove('bg-gray-500')
-        btn.classList.add('bg-green-500');
-        btn.classList.add('hover:bg-green-700');
-        btn.innerText = btn.innerText.replace('Set', 'Save');
-        btn.innerText = btn.innerText.replace('Start', 'Stop');
-    } else {
-        functionBtns.forEach((value, key) => {
-            value.disabled = false;
-
-            value.classList.remove('bg-gray-500');
-            value.classList.remove('bg-green-500');
-            value.classList.remove('hover:bg-green-700');
-            value.classList.add('bg-blue-500');
-            value.classList.add('hover:bg-blue-700');
-        });
-
-        btn.innerText = btn.innerText.replace('Save', 'Set');
-        btn.innerText = btn.innerText.replace('Stop', 'Start');
-    }
-
+function displayRecord ()
+{
+    alert('Displaying recorded data');
 }
 
 function setRefPoint(isEntry) {
@@ -733,6 +714,8 @@ function setRefPoint(isEntry) {
     }
 
     setBtnStatus(btn, isSelectingPoint);
+
+    btn.innerText = isSelectingPoint ? btn.innerText.replace('Set', 'Save') : btn.innerText.replace('Save', 'Set');
 
     if (isSelectingPoint) {
         if (isEntry) {
@@ -770,4 +753,32 @@ function setRefPoint(isEntry) {
             }
         }
     }
+}
+
+function setBtnStatus(btn, inProgress) {
+    if (inProgress) {
+        functionBtns.forEach((value, key) => {
+            value.disabled = true;
+
+            value.classList.remove('bg-blue-500');
+            value.classList.remove('hover:bg-blue-700');
+            value.classList.add('bg-gray-500');
+        });
+
+        btn.disabled = false;
+        btn.classList.remove('bg-gray-500')
+        btn.classList.add('bg-green-500');
+        btn.classList.add('hover:bg-green-700');
+    } else {
+        functionBtns.forEach((value, key) => {
+            value.disabled = false;
+
+            value.classList.remove('bg-gray-500');
+            value.classList.remove('bg-green-500');
+            value.classList.remove('hover:bg-green-700');
+            value.classList.add('bg-blue-500');
+            value.classList.add('hover:bg-blue-700');
+        });
+    }
+
 }
