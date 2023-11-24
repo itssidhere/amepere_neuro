@@ -18,8 +18,8 @@ renderer.setClearColor(0x000000, 0);  // make it transparent
 const brainGroup = new THREE.Group();
 const controls = new OrbitControls(camera, renderer.domElement);
 
-const ballJointGeometry = new THREE.SphereGeometry(6, 32, 32);
-const ballJointMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+const ballJointGeometry = new THREE.SphereGeometry(10, 32, 32);
+const ballJointMaterial = new THREE.MeshBasicMaterial({ color: 0xb7410e });
 const ballJointMesh = new THREE.Mesh(ballJointGeometry, ballJointMaterial);
 
 const needleGeometry = new THREE.SphereGeometry(6, 32, 32);
@@ -33,6 +33,10 @@ const refPointMesh = new THREE.Mesh(refPointGeometry, refPointMaterial);
 const refLineGeometry = new LineGeometry();
 const refLineMaterial = new LineMaterial({ color: 0x00ff00, linewidth: 0.01 });
 const refLineMesh = new Line2(refLineGeometry, refLineMaterial);
+
+const meaLineGeometry = new LineGeometry();
+const meaLineMaterial = new LineMaterial({ color: 0x0000ff, linewidth: 0.01 });
+const meaLineMesh = new Line2(meaLineGeometry, meaLineMaterial);
 
 let colors = {};
 let points = [];
@@ -54,11 +58,26 @@ export function update3DPointObject(newPos) {
     refPointMesh.position.set(newPos[0], newPos[1], newPos[2]);
 }
 
-export function update3DRefLine(points) {
-    refLineGeometry.setPositions(points);
-    refLineGeometry.NeedsUpdate = true;
-    refLineMesh.visible = true;
+export function update3DLine(points, isRefLine) {
+    if (isRefLine) {
+        refLineGeometry.setPositions(points);
+        refLineGeometry.NeedsUpdate = true;
+        refLineMesh.visible = true;
+    } else {
+        meaLineGeometry.setPositions(points);
+        meaLineGeometry.NeedsUpdate = true;
+        meaLineMesh.visible = true;
+    }
 }
+
+export function hide3DLine(isRefLine) {
+    if (isRefLine) {
+        refLineMesh.visible = false;
+    } else {
+        meaLineMesh.visible = false;
+    }
+}
+
 
 export function set3DSegVisability(id, visability) {
     let segment = scene.getObjectByName(id.toString());
@@ -75,15 +94,15 @@ export function getNeedlePosition() {
         const data = JSON.parse(e.data);
         // Split data.message using ',' and convert each element to a float
         const coords = data.message.split(",").map(item => parseFloat(item, 10));
-        const newPoint = new THREE.Vector3(...coords);
+        let newPoint = new THREE.Vector3(...coords);
         // Check if points array is empty or new point is different from the last point
         if (points.length === 0 || !newPoint.equals(points[points.length - 1])) {
+            // console.log(newPoint.x, newPoint.y, newPoint.z)
+            newPoint = convertChai3Dto3DPosition(newPoint);
+            needleMesh.position.set(newPoint.x, newPoint.y, newPoint.z);
+
             const converted = convert3Dto2DPosition(newPoint);
             addActualPoint(converted);
-            needleMesh.position.set(newPoint.x, newPoint.y, newPoint.z);
-            // points.push(newPoint);
-            // geometry.setFromPoints(points);
-            // geometry.NeedsUpdate = true;
         }
     }
 }
@@ -110,12 +129,14 @@ export function getSkullOrientation() {
 // let t = 0;
 
 // function testNeedle() {
-//     t = t + 10;
-//     const newPoint = new THREE.Vector3(512.0137790623492 + t, 179.23385922225197 + t, 32.00000000000003 + t);
+//     t = t + 0.01;
+//     const newPoint = new THREE.Vector3(0.38 + t, 0 + t / 2, 0 + t / 10);
+//     newPoint.multiplyScalar(1000);
 //     needleMesh.position.set(newPoint.x, newPoint.y, newPoint.z);
-//     newPoint.multiplyScalar(0.001);
+
 //     const converted = convert3Dto2DPosition(newPoint);
 //     addActualPoint(converted);
+
 //     setTimeout(testNeedle, 1000);
 // }
 
@@ -195,6 +216,8 @@ export default function loadSTLModel(stlFiles) {
     refPointMesh.visible = false;
     referenceGroup.add(refLineMesh);
     refLineMesh.visible = false;
+    referenceGroup.add(meaLineMesh);
+    meaLineMesh.visible = false;
 
     const material = new THREE.LineBasicMaterial({ color: 0xff0000 });
     const line = new THREE.Line(geometry, material);
@@ -264,7 +287,7 @@ function getSkulltoBallJointQuaternion() {
 }
 
 function getSkulltoBallJointTranslation() {
-    const translation = new THREE.Vector3(0.12, 0.12, 0);
+    const translation = new THREE.Vector3(0.06, 0.12, 0);
     translation.multiplyScalar(1000);
     return translation;
 }
@@ -272,15 +295,21 @@ function getSkulltoBallJointTranslation() {
 function convertBallJointRotationtoSkullRotation(ballJointRotation) {
     const euler = new THREE.Euler();
     euler.setFromQuaternion(ballJointRotation);
-    euler.set(euler.z, euler.y, euler.x);
+    euler.set(euler.z, euler.y, - euler.x);
     const quaternion = new THREE.Quaternion();
     quaternion.setFromEuler(euler);
     return quaternion;
 }
 
+function convertChai3Dto3DPosition(position) {
+    const newPosition = new THREE.Vector3(position.x, position.z, - position.y);
+    newPosition.multiplyScalar(1000);
+    return newPosition;
+
+}
+
 function convert3Dto2DPosition(position) {
     let newPosition = new THREE.Vector3(position.x, position.y, position.z);
-    newPosition.multiplyScalar(1000);
     newPosition = brainGroup.worldToLocal(newPosition);
     return newPosition;
 }

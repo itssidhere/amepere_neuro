@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'orbit-control';
-import { set3DSegVisability, set3DPointVisability, update3DPointObject, update3DRefLine } from './model_loader.js'
+import { set3DSegVisability, set3DPointVisability, update3DPointObject, update3DLine, hide3DLine } from './model_loader.js'
 import { LineGeometry } from 'line-geometry';
 import { LineMaterial } from 'line-material';
 import { Line2 } from 'line2';
@@ -54,6 +54,9 @@ const currPointPos = new THREE.Vector3();
 
 const entryPos = new THREE.Vector3();
 const targetPos = new THREE.Vector3();
+
+const measureStartPos = new THREE.Vector3();
+const measureEndPos = new THREE.Vector3();
 
 let count = 0;
 let isSelectingPoint = false;
@@ -166,30 +169,21 @@ function getMousePos(event) {
             sliders[i].value = newSliderValues[i];
             sliders[i].oninput();
         }
-
-        visPoints[i].position.set(pointFloat[0], pointFloat[1], pointFloat[2]);
-        switch (i) {
-            case 0:
-                visPoints[i].position.y = 0;
-                break;
-            case 1:
-                visPoints[i].position.z = 0;
-                break;
-            case 2:
-                visPoints[i].position.x = 0;
-                break;
-        }
     }
 
     update3DPointObject(pointFloat);
+
+    setVisPointsFromPos(currPointPos);
 }
 
-function updateRefLine(entry, target) {
+function updateLine(entry, target, isRef) {
     let points = [];
     points.push(entry.x, entry.y, entry.z);
     points.push(target.x, target.y, target.z);
 
-    update3DRefLine(points);
+    update3DLine(points, isRef);
+
+    let lineArray = isRef ? refLineMeshes : meaLineMeshes;
 
     for (let i = 0; i < 3; i++) {
         let tempPoints = [];
@@ -208,9 +202,9 @@ function updateRefLine(entry, target) {
                 break;
         }
 
-        refLineMeshes[i].geometry.setPositions(tempPoints);
-        refLineMeshes[i].geometry.NeedsUpdate = true;
-        refLineMeshes[i].visible = true;
+        lineArray[i].geometry.setPositions(tempPoints);
+        lineArray[i].geometry.NeedsUpdate = true;
+        lineArray[i].visible = true;
     }
 }
 
@@ -692,17 +686,42 @@ function setPointVisability(inProgress, color) {
 function measure() {
     mesauringStatus = (mesauringStatus + 1) % 4;
 
-    alert('Measuring: ' + mesauringStatus);
-
-    let btn = functionBtns.get("measure");
+    const btn = functionBtns.get("measure");
 
     const isMeasuring = mesauringStatus == 1 || mesauringStatus == 2;
+
+    const measureResult = document.getElementById('measure-result');
 
     setBtnStatus(btn, isMeasuring);
 
     setPointVisability(isMeasuring, 0x0000ff);
 
     btn.innerText = mesauringStatus == 0 ? "Start Measuring" : mesauringStatus == 1 ? "Save Start Point" : mesauringStatus == 2 ? "Save End Point" : "Clear Measurement";
+
+    switch (mesauringStatus) {
+        case 0: // Idle
+            measureResult.innerHTML = '0';
+            hide3DLine(false);
+            meaLineMeshes.forEach(line => {
+                line.visible = false;
+            });
+            break;
+        case 1: // Choosing Start Point
+            setVisPointsFromPos(new THREE.Vector3(0, 0, 0));
+            break;
+        case 2: // Choosing End Point
+            setVisPointsFromPos(new THREE.Vector3(0, 0, 0));
+            measureStartPos.copy(currPointPos);
+            console.log("measureStartPos: ", measureStartPos);
+            break;
+        case 3: // Finished
+            measureEndPos.copy(currPointPos);
+            console.log("measureEndPos: ", measureEndPos);
+            const distance = measureStartPos.distanceTo(measureEndPos);
+            measureResult.innerHTML = distance.toFixed(2);
+            updateLine(measureStartPos, measureEndPos, false);
+            break;
+    }
 }
 
 
@@ -729,31 +748,19 @@ function setRefPoint(isEntry) {
         }
 
         update3DPointObject(currPointPos);
-        for (let i = 0; i < 3; i++) {
-            visPoints[i].position.set(currPointPos.x, currPointPos.y, currPointPos.z);
-            switch (i) {
-                case 0:
-                    visPoints[i].position.y = 0;
-                    break;
-                case 1:
-                    visPoints[i].position.z = 0;
-                    break;
-                case 2:
-                    visPoints[i].position.x = 0;
-                    break;
-            }
-        }
+        
+        setVisPointsFromPos(currPointPos);
 
     } else {
         if (isEntry) {
             entryPos.copy(currPointPos);
             if (targetPos.x !== 0 || targetPos.y !== 0 || targetPos.z !== 0) {
-                updateRefLine(entryPos, targetPos);
+                updateLine(entryPos, targetPos, true);
             }
         } else {
             targetPos.copy(currPointPos);
             if (entryPos.x !== 0 || entryPos.y !== 0 || entryPos.z !== 0) {
-                updateRefLine(entryPos, targetPos);
+                updateLine(entryPos, targetPos, true);
             }
         }
     }
@@ -785,4 +792,21 @@ function setBtnStatus(btn, inProgress) {
         });
     }
 
+}
+
+function setVisPointsFromPos(pos) {
+    for (let i = 0; i < 3; i++) {
+        visPoints[i].position.set(pos.x, pos.y, pos.z);
+        switch (i) {
+            case 0:
+                visPoints[i].position.y = 0;
+                break;
+            case 1:
+                visPoints[i].position.z = 0;
+                break;
+            case 2:
+                visPoints[i].position.x = 0;
+                break;
+        }
+    }
 }
