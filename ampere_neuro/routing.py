@@ -14,7 +14,10 @@ websocket_urlpatterns = [
 
     path(
         'ws/needle_message/', consumers.NeedleMessageConsumer.as_asgi()
-    )
+    ),
+    path(
+        'ws/record_message/', consumers.RecordMessageConsumer.as_asgi()
+    ),
 ]
 
 application = ProtocolTypeRouter(

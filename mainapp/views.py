@@ -11,6 +11,8 @@ import numpy as np
 import socketio
 import subprocess
 from getpass import getpass
+import threading
+
 
 import json
 
@@ -191,12 +193,13 @@ def send_model(request):
     command.append(parenchyma_arg.strip())
     print(command)
     try:
-        subprocess.run(
-        command, stdout=subprocess.PIPE,input=getpass("password: "), encoding="ascii")
+        threading.Thread(target=run_subprocess, args=(command,)).start()
     except Exception as e:
         print(e)
 
     return JsonResponse({"success": True})
+
+
 
 
 
@@ -231,4 +234,7 @@ def getStlFileFromId(model_name):
     STL_DIR = MEDIA_DIR.joinpath('stl_files').joinpath(model_name)
     return MEDIA_LOCAL,STL_DIR
 
+def run_subprocess(command):
+    subprocess.run(
+        command, stdout=subprocess.PIPE,input=getpass("password: "), encoding='ascii')
     

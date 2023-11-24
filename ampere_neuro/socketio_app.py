@@ -36,7 +36,7 @@ def send_message(sid, data):
 
 @sio.event
 def send_skull_message(sid, data):
-    print("Received skull message from", sid, ":", data)
+    #print("Received skull message from", sid, ":", data)
     # send current time to string
     dateToStr = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     sio.emit("skull_message", dateToStr, sid)
@@ -49,12 +49,22 @@ def send_skull_message(sid, data):
 
 @sio.event
 def send_needle_messsage(sid, data):
-    print("Received needle message from", sid, ":", data)
+    #print("Received needle message from", sid, ":", data)
     # send current time to string
     dateToStr = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     sio.emit("needle_message", dateToStr, sid)
     async_to_sync(channel_layer.group_send)(
         "needle_message_group", {"type": "chat_message", "text": data}
+    )
+
+@sio.event
+def send_record_message(sid, data):
+    print("Received record message from", sid, ":", data)
+    # send current time to string
+    dateToStr = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    sio.emit("record_message", dateToStr, sid)
+    async_to_sync(channel_layer.group_send)(
+        "record_message_group", {"type": "chat_message", "text": data}
     )
 
 

@@ -161,11 +161,32 @@
 
     <script type="text/javascript">
         let selectedModel = "";
+        const socket = new WebSocket('ws://' + window.location.host + '/ws/record_message/');
+        let isRecording = false;
+
         document.getElementById('uploadMriButton').addEventListener('click', triggerFileSelect)
         
         document.getElementById('segmentMri').addEventListener('click', triggerSegmentMri)
         document.getElementById('customSTLModel').addEventListener('click', triggerCustomSTLModel)
         document.getElementById('initRobot').addEventListener('click', startRobot)
+
+        document.getElementById('btn-record').addEventListener('click', function(){
+           if(!isRecording){
+            socket.send(JSON.stringify({command: 'start_record'}));
+            this.textContent = 'Stop Record';
+           }else {
+            // Stop recording
+            var filename = prompt("Please enter the filename for the CSV", "recorded_data");
+            if (filename != null && filename !== "") {
+                // Stop recording and send filename
+                socket.send(JSON.stringify({command: 'stop_record', filename: filename+'.csv'}));
+                this.textContent = 'Start Record';
+            }
+        }
+        isRecording = !isRecording;
+    });
+    
+    
 
         function triggerFileSelect(){
             document.getElementById('hiddenMriInput').click();
