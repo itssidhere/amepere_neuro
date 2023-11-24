@@ -25,9 +25,9 @@ if (localStorage.getItem('visibilities') === null) {
             visibilities = json['visibilities'];
             localStorage.setItem('visibilities', JSON.stringify(visibilities));
         });
-    } else {
-        visibilities = JSON.parse(localStorage.getItem('visibilities'));
-    }
+} else {
+    visibilities = JSON.parse(localStorage.getItem('visibilities'));
+}
 
 var header, typedImg, typedSeg;
 var normFactor, contrast = 1.2;
@@ -65,8 +65,7 @@ let isRecording = false;
 
 const functionBtns = new Map();
 
-function initBtn()
-{
+function initBtn() {
     functionBtns.set("entry", document.getElementById('btn-entry'));
     functionBtns.set("target", document.getElementById('btn-target'));
     functionBtns.set("measure", document.getElementById('btn-measure'));
@@ -76,7 +75,6 @@ function initBtn()
     functionBtns.get("entry").addEventListener('click', () => setRefPoint(true));
     functionBtns.get("target").addEventListener('click', () => setRefPoint(false));
     functionBtns.get("measure").addEventListener('click', measure);
-    functionBtns.get("record").addEventListener('click', record);
     functionBtns.get("record-display").addEventListener('click', displayRecord);
 
     functionBtns.forEach((value, key) => {
@@ -92,7 +90,7 @@ function initBtn()
 // function testEmitter() {
 //     const point = new THREE.Vector3(Math.random() * 100, Math.random() * 100, Math.random() * 100);
 //     addActualPoint(point);
-    
+
 //     setTimeout(testEmitter, 3000);
 // }
 
@@ -121,7 +119,7 @@ export function addActualPoint(point) {
 
 function getMousePos(event) {
     if (!isSelectingPoint && !(mesauringStatus == 1 || mesauringStatus == 2)) return;
-    
+
     if (count > 0) {
         count--;
         return;
@@ -568,7 +566,7 @@ function updateSliceView(index, slice) {
 
     containers[index].addEventListener('mousedown', (evt) => { isMouseDown = true; onMouseMove(evt) });
     containers[index].addEventListener('mousemove', onMouseMove);
-    containers[index].addEventListener('mouseup', () => {isMouseDown = false; count = 0});
+    containers[index].addEventListener('mouseup', () => { isMouseDown = false; count = 0 });
 
     window.onresize = function () {
         cameras[index].aspect = containers[index].clientWidth / containers[index].clientHeight;
@@ -726,20 +724,9 @@ function measure() {
     }
 }
 
-function record() {
-    isRecording = !isRecording;
 
-    alert('Recording: ' + isRecording);
 
-    let btn = functionBtns.get("record");
-
-    setBtnStatus(btn, isRecording);
-
-    btn.innerText = isRecording ? btn.innerText.replace('Start', 'Stop') : btn.innerText.replace('Stop', 'Start');
-}
-
-function displayRecord ()
-{
+function displayRecord() {
     alert('Displaying recorded data');
 }
 
