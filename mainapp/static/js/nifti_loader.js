@@ -64,6 +64,8 @@ let mesauringStatus = 0;
 let isRecording = false;
 
 const functionBtns = new Map();
+let imageData;
+let segmentationData;
 
 function initBtn() {
     functionBtns.set("entry", document.getElementById('btn-entry'));
@@ -299,6 +301,9 @@ async function readSegmentation(path) {
                         typedSeg = createTypedData(segHeader.datatypeCode, segImage)
 
                         displaySegmentationList();
+
+                        imageData = undefined;
+                        segmentationData = undefined;
                     }
                 }
             };
@@ -482,6 +487,13 @@ function readNIFTI(data) {
             containers[i].appendChild(renderers[i].domElement);
             const control = new OrbitControls(cameras[i], renderers[i].domElement);
             control.enableRotate = false;
+
+            function render() {
+                requestAnimationFrame(render);
+                renderers[i].render(scene, cameras[i]);
+            }
+
+            render();
         }
         refreshDisplay();
     }
@@ -512,8 +524,8 @@ function updateSliceView(index, slice) {
 
     sliceOffset = header.dims[1] * header.dims[2];
 
-    let imageData = new Uint8Array(4 * cols * rows);
-    let segmentationData = new Uint8Array(4 * cols * rows);
+    imageData = imageData ||  new Uint8Array(4 * cols * rows);
+    segmentationData = segmentationData || new Uint8Array(4 * cols * rows);
 
     // console.log(segmentation)
 
@@ -567,20 +579,15 @@ function updateSliceView(index, slice) {
     containers[index].addEventListener('mousedown', (evt) => { isMouseDown = true; onMouseMove(evt) });
     containers[index].addEventListener('mousemove', onMouseMove);
     containers[index].addEventListener('mouseup', () => { isMouseDown = false; count = 0 });
-
-    window.onresize = function () {
-        cameras[index].aspect = containers[index].clientWidth / containers[index].clientHeight;
-        cameras[index].updateProjectionMatrix();
-        renderers[index].setSize(containers[index].clientWidth, containers[index].clientHeight);
-    }
-
-    function render() {
-        requestAnimationFrame(render);
-        renderers[index].render(scene, cameras[index]);
-    }
-
-    render();
 }
+
+window.onresize = function () {
+    cameras[index].aspect = containers[index].clientWidth / containers[index].clientHeight;
+    cameras[index].updateProjectionMatrix();
+    renderers[index].setSize(containers[index].clientWidth, containers[index].clientHeight);
+}
+
+
 
 function refreshDisplay() {
     for (let i = 0; i < 3; i++) {
