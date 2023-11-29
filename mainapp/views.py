@@ -174,6 +174,7 @@ def send_model(request):
     print("Sending model")
     body = json.loads(request.body)
     venctricle_arg = ''
+    sudo_password = body['sudo_password']
     if('model_path' not in body):
         model_names = body['model_names']
         _,  model_path = getSynthsegFromId(body['model_id'])
@@ -193,7 +194,7 @@ def send_model(request):
     command.append(parenchyma_arg.strip())
     print(command)
     try:
-        threading.Thread(target=run_subprocess, args=(command,)).start()
+        threading.Thread(target=run_subprocess, args=(command, sudo_password)).start()
     except Exception as e:
         print(e)
 
@@ -234,7 +235,7 @@ def getStlFileFromId(model_name):
     STL_DIR = MEDIA_DIR.joinpath('stl_files').joinpath(model_name)
     return MEDIA_LOCAL,STL_DIR
 
-def run_subprocess(command):
+def run_subprocess(command, sudo_password):
     subprocess.run(
-        command, stdout=subprocess.PIPE,input=getpass("password: "), encoding='ascii')
+        command, stdout=subprocess.PIPE,input=sudo_password, encoding='ascii')
     

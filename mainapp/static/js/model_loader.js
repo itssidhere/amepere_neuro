@@ -39,7 +39,9 @@ let points = [];
 
 fetch('/static/json/config.json')
     .then((response) => response.json())
-    .then((json) => { colors = json['colors'];});
+    .then((json) => { colors = json['colors']; });
+
+replayPatientPosition('gavin');
 
 
 export function set3DPointVisability(visability, color = null) {
@@ -48,6 +50,37 @@ export function set3DPointVisability(visability, color = null) {
     if (color !== null) {
         refPointMaterial.color.setHex(color);
     }
+}
+
+export async function replayPatientPosition(patient) {
+    let patientData = await fetch(`/media/recorded_data/${patient}.csv`);
+
+    if (patientData.ok) {
+        let csvText = await patientData.text();
+        patientData = parseCSV(csvText);
+        console.log(patientData);
+
+    }
+
+}
+
+function parseCSV(csvText) {
+    let lines = csvText.split("\n");
+    let result = [];
+    let headers = lines[0].split(",");
+
+    for (let i = 1; i < lines.length; i++) {
+        let obj = {};
+        let currentline = lines[i].split(",");
+
+        for (let j = 0; j < headers.length; j++) {
+            obj[headers[j]] = currentline[j];
+        }
+
+        result.push(obj);
+    }
+
+    return result;
 }
 
 export function update3DPointObject(newPos) {
@@ -75,20 +108,23 @@ export function getNeedlePosition() {
         const data = JSON.parse(e.data);
         // Split data.message using ',' and convert each element to a float
         const coords = data.message.split(",").map(item => parseFloat(item, 10));
-        const newPoint = new THREE.Vector3(...coords);
-        // Check if points array is empty or new point is different from the last point
-        if (points.length === 0 || !newPoint.equals(points[points.length - 1])) {
-            const converted = convert3Dto2DPosition(newPoint);
-            addActualPoint(converted);
-            needleMesh.position.set(newPoint.x, newPoint.y, newPoint.z);
-            // points.push(newPoint);
-            // geometry.setFromPoints(points);
-            // geometry.NeedsUpdate = true;
-        }
+        drawPoint(coords);
+    }
+
+
+}
+
+export function drawPoint(coords) {
+    const newPoint = new THREE.Vector3(...coords);
+    // Check if points array is empty or new point is different from the last point
+    if (points.length === 0 || !newPoint.equals(points[points.length - 1])) {
+        const converted = convert3Dto2DPosition(newPoint);
+        addActualPoint(converted);
+        needleMesh.position.set(newPoint.x, newPoint.y, newPoint.z);
     }
 }
 
-export function getSkullOrientation() {    
+export function getSkullOrientation() {
     const socket = new WebSocket('ws://' + window.location.host + '/ws/skull_message/');
     socket.onmessage = function (e) {
         const data = JSON.parse(e.data);
@@ -97,14 +133,18 @@ export function getSkullOrientation() {
         // Split data.message using ',' and convert each element to a float
         const quants = data.message.split(",").map(item => parseFloat(item, 10));
 
-        if (ballJointMesh) {
-            const quaternion = new THREE.Quaternion();
-            quaternion.set(quants[0], quants[1], quants[2], quants[3]).normalize();
-
-            ballJointMesh.setRotationFromQuaternion(convertBallJointRotationtoSkullRotation(quaternion));
-        }
+        drawSkull(quants);
 
     };
+}
+
+function drawSkull(quants) {
+    if (ballJointMesh) {
+        const quaternion = new THREE.Quaternion();
+        quaternion.set(quants[0], quants[1], quants[2], quants[3]).normalize();
+
+        ballJointMesh.setRotationFromQuaternion(convertBallJointRotationtoSkullRotation(quaternion));
+    }
 }
 
 // let t = 0;

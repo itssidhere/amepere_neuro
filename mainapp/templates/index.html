@@ -33,6 +33,28 @@
 <body class="bg-gray-100 h-screen">
     <input type="file" id="hiddenMriInput" accept=".nii.gz, .nii" style="display: none;">
     <input type="file" id="hiddenStlInput" accept=".stl" style="display: none;">
+    <div id="passwordModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
+        <div class="container mx-auto lg:px-32 rounded-lg overflow-hidden p-6 space-y-4">
+            <div class="bg-white rounded shadow-lg md:max-w-md mx-auto">
+                <div class="py-4 px-8">
+                    <span class="close float-right text-gray-700 hover:text-gray-600 cursor-pointer">&times;</span>
+                    <form id="passwordForm">
+                        <div class="mb-4">
+                            <label for="sudoPassword" class="block text-gray-700 text-sm font-bold mb-2">
+                                Please enter the sudo password:
+                            </label>
+                            <input type="password" id="sudoPassword" name="sudoPassword" 
+                                   class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <input type="submit" value="Submit" 
+                                   class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <div class="bg-white shadow p-4" style="height: 8%;">
         <nav class="container mx-auto flex justify-between">
@@ -164,11 +186,30 @@
         const socket = new WebSocket('ws://' + window.location.host + '/ws/record_message/');
         let isRecording = false;
 
+        var modal = document.getElementById('passwordModal');
+        var span = document.getElementsByClassName("close")[0];
+
+        span.onclick = function() {
+            document.getElementById('passwordModal').style.display = 'none';
+
+        }
+
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                document.getElementById('passwordModal').style.display = 'none';
+
+            }
+        }
+
+
         document.getElementById('uploadMriButton').addEventListener('click', triggerFileSelect)
-        
+        document.getElementById('passwordForm').addEventListener('submit', startRobot)
+
         document.getElementById('segmentMri').addEventListener('click', triggerSegmentMri)
         document.getElementById('customSTLModel').addEventListener('click', triggerCustomSTLModel)
-        document.getElementById('initRobot').addEventListener('click', startRobot)
+        document.getElementById('initRobot').addEventListener('click', function(){
+            document.getElementById('passwordModal').style.display = 'block';
+        })
 
         document.getElementById('btn-record').addEventListener('click', function(){
            if(!isRecording){
@@ -399,6 +440,19 @@
 
         function startRobot()
         {
+           
+            event.preventDefault();
+
+            var sudo_password = document.getElementById('sudoPassword').value;
+
+            if (!sudo_password) {
+                alert("Please enter the sudo password");
+                return;
+            }
+            
+            //hide the modal
+            document.getElementById('passwordModal').style.display = 'none';
+
             var visibilities = JSON.parse(localStorage.getItem('visibilities'));
             //find the index of all the true values
             var true_indices = [];
@@ -415,7 +469,8 @@
                 method: 'POST',
                 body: JSON.stringify({
                     model_id: selectedModel,
-                    model_names: true_indices
+                    model_names: true_indices,
+                    sudo_password: sudo_password
                 }),
                 headers: {
                     'X-CSRFToken': '{{csrf_token}}'
