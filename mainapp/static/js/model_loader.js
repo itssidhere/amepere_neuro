@@ -9,6 +9,7 @@ import { Line2 } from 'line2';
 const container = document.getElementById('threejs-container');
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 2000);
+// camera.LookAt = new THREE.Vector3(0, 0, 800);
 camera.position.z = 800;
 const geometry = new THREE.BufferGeometry();
 
@@ -22,7 +23,7 @@ const ballJointGeometry = new THREE.SphereGeometry(10, 32, 32);
 const ballJointMaterial = new THREE.MeshBasicMaterial({ color: 0xb7410e });
 const ballJointMesh = new THREE.Mesh(ballJointGeometry, ballJointMaterial);
 
-const needleGeometry = new THREE.SphereGeometry(6, 32, 32);
+const needleGeometry = new THREE.SphereGeometry(3, 32, 32);
 const needleMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
 const needleMesh = new THREE.Mesh(needleGeometry, needleMaterial);
 
@@ -139,6 +140,8 @@ export function set3DSegVisability(id, visability) {
     }
 }
 
+const offset = new THREE.Vector3();
+offset.set(-0.0125, 0 , -0.0125);
 
 export function getNeedlePosition() {
     const socket = new WebSocket('ws://' + window.location.host + '/ws/needle_message/');
@@ -190,8 +193,9 @@ function drawSkull(quaternion) {
 // let t = 0;
 
 // function testNeedle() {
-//     t = t + 0.01;
-//     const newPoint = new THREE.Vector3(0.38 + t, 0 + t / 2, 0 + t / 10);
+//     t = t - 0.01;
+//     const newPoint = new THREE.Vector3(0.45, 0.16 + t / 2, 0.16);
+//     console.log(newPoint)
 //     newPoint.multiplyScalar(1000);
 //     needleMesh.position.set(newPoint.x, newPoint.y, newPoint.z);
 
@@ -217,6 +221,10 @@ function drawSkull(quaternion) {
 // }
 
 // testRot();
+
+const quaternion = new THREE.Quaternion();
+quaternion.setFromEuler(new THREE.Euler())
+
 
 
 function render() {
