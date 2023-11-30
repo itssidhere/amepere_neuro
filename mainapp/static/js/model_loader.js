@@ -45,7 +45,9 @@ fetch('/static/json/config.json')
     .then((response) => response.json())
     .then((json) => { colors = json['colors']; });
 
-replayPatientPosition('gavin');
+setTimeout(() => {
+    replayPatientPosition('wednesday');
+}, 5000);
 
 
 export function set3DPointVisability(visability, color = null) {
@@ -62,7 +64,24 @@ export async function replayPatientPosition(patient) {
     if (patientData.ok) {
         let csvText = await patientData.text();
         patientData = parseCSV(csvText);
-        console.log(patientData);
+
+
+        // iterate through each row of the csv file
+        for (let i = 0; i < patientData.length; i++) {
+            console.log(patientData[i]);
+            // convert each row to a vector3
+            let x = parseFloat(patientData[i]['x']);
+            let y = parseFloat(patientData[i]['y']);
+            let z = parseFloat(patientData[i]['z']);
+            // let quants = [parseFloat(patientData[i]['q0']), parseFloat(patientData[i]['q1']), parseFloat(patientData[i]['q2']), parseFloat(patientData[i]['q3'])];
+            let newPos = new THREE.Vector3(x, y, z);
+            // const quaternion = new THREE.Quaternion();
+            // quaternion.set(quants[0], quants[1], quants[2], quants[3]).normalize();
+            drawPoint(newPos);
+            // drawSkull(quaternion);
+
+            await new Promise(r => setTimeout(r, 100));
+        }
 
     }
 
@@ -127,7 +146,8 @@ export function getNeedlePosition() {
         const data = JSON.parse(e.data);
         // Split data.message using ',' and convert each element to a float
         const coords = data.message.split(",").map(item => parseFloat(item, 10));
-        drawPoint(coords);
+        const newPoint = new THREE.Vector3(coords[0], coords[1], coords[2]);
+        drawPoint(newPoint);
     }
 
 
@@ -141,14 +161,14 @@ export function getSkullOrientation() {
 
         // Split data.message using ',' and convert each element to a float
         const quants = data.message.split(",").map(item => parseFloat(item, 10));
-
-        drawSkull(quants);
+        const quaternion = new THREE.Quaternion();
+        quaternion.set(quants[0], quants[1], quants[2], quants[3]).normalize();
+        drawSkull(quaternion);
 
     };
 }
 
-function drawPoint(coords) {
-    let newPoint = new THREE.Vector3(...coords);
+function drawPoint(newPoint) {
     // Check if points array is empty or new point is different from the last point
     if (points.length === 0 || !newPoint.equals(points[points.length - 1])) {
         // console.log(newPoint.x, newPoint.y, newPoint.z)
@@ -160,10 +180,8 @@ function drawPoint(coords) {
     }
 }
 
-function drawSkull(quants) {
+function drawSkull(quaternion) {
     if (ballJointMesh) {
-        const quaternion = new THREE.Quaternion();
-        quaternion.set(quants[0], quants[1], quants[2], quants[3]).normalize();
 
         ballJointMesh.setRotationFromQuaternion(convertBallJointRotationtoSkullRotation(quaternion));
     }

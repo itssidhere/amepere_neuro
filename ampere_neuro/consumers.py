@@ -85,7 +85,7 @@ class RecordMessageConsumer(WebsocketConsumer):
             os.makedirs('media/recorded_data')
         with open('media/recorded_data/'+filename, 'w', newline='') as csvfile:
             writer = csv.writer(csvfile)
-            writer.writerow(['time', 'x', 'y', 'z', 'q0', 'q1', 'q2', 'q3', 'force_x', 'force_y', 'force_z'])
+            writer.writerow(['time', 'x', 'y', 'z','d', 'q0', 'q1', 'q2', 'q3', 'force_x', 'force_y', 'force_z'])
             
             for row in data:
                 current_timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
