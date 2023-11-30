@@ -31,6 +31,7 @@ urlpatterns = [
     path("getNifti/", views.get_nifti, name="getNifti"),
     path("getStlFolder/", views.get_stl_folder, name="getStlFolder"),
     path("sendModel/", views.send_model, name="sendModel"),
+    path("getRecordedData/", views.get_recorded_data, name="getRecordedData"),
 ]
 
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

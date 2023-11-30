@@ -202,16 +202,33 @@ def send_model(request):
 
 
 
-
-
-
-
 def get_stl_folder(request):
     model_name = json.loads(request.body)['model_name']
     MEDIA_LOCAL, STL_DIR = getSynthsegFromId(model_name)
     stl_files = [os.path.join(MEDIA_LOCAL, f) for f in os.listdir(STL_DIR) if f.endswith(".stl")]
 
     return JsonResponse({"success": True, "files": stl_files})
+
+
+def get_recorded_data(request):
+    # fetch all the file names in the recorded data folder
+    BASE_DIR = Path(__file__).resolve().parent.parent
+    # media folder
+    MEDIA_DIR = BASE_DIR / "media"
+    MEDIA_LOCAL = f"/media/recorded_data"
+
+    recorded_data_dir = MEDIA_DIR.joinpath('recorded_data')
+
+    recorded_data_files = [os.path.join(MEDIA_LOCAL, f) for f in os.listdir(recorded_data_dir) if f.endswith(".csv")]
+
+    # only return the file name
+    recorded_data_files = [os.path.basename(f) for f in recorded_data_files]
+
+    # remove the .csv extension
+    recorded_data_files = [f.replace(".csv", "") for f in recorded_data_files]
+
+    return JsonResponse({"success": True, "files": recorded_data_files})
+
 
 
 

@@ -33,6 +33,7 @@
 <body class="bg-gray-100 h-screen">
     <input type="file" id="hiddenMriInput" accept=".nii.gz, .nii" style="display: none;">
     <input type="file" id="hiddenStlInput" accept=".stl" style="display: none;">
+
     <div id="passwordModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
         <div class="container mx-auto lg:px-32 rounded-lg overflow-hidden p-6 space-y-4">
             <div class="bg-white rounded shadow-lg md:max-w-md mx-auto">
@@ -50,6 +51,27 @@
                             <input type="submit" value="Submit" 
                                    class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
                         </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <div id="displayRecordingModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
+        <div class="container mx-auto lg:px-32 rounded-lg overflow-hidden p-6 space-y-4">
+            <div class="bg-white rounded shadow-lg md:max-w-md mx-auto">
+                <div class="py-4 px-8">
+                    <span class="close float-right text-gray-700 hover:text-gray-600 cursor-pointer">&times;</span>
+                    <form id="passwordForm">
+                        <div class="mb-4">
+                            <div class="block text-gray-700 text-sm font-bold mb-2">
+                                Which recording would you like to display:
+                            </div>
+                            <div id="recordingList">
+                            </div>
+                        </div>
+                        
                     </form>
                 </div>
             </div>
@@ -189,14 +211,27 @@
         var modal = document.getElementById('passwordModal');
         var span = document.getElementsByClassName("close")[0];
 
+        var displayRecordingModal = document.getElementById('displayRecordingModal');
+        var span2 = document.getElementsByClassName("close")[1];
+
         span.onclick = function() {
             document.getElementById('passwordModal').style.display = 'none';
+
+        }
+
+        span2.onclick = function() {
+            document.getElementById('displayRecordingModal').style.display = 'none';
 
         }
 
         window.onclick = function(event) {
             if (event.target == modal) {
                 document.getElementById('passwordModal').style.display = 'none';
+
+            }
+
+            if (event.target == displayRecordingModal) {
+                document.getElementById('displayRecordingModal').style.display = 'none';
 
             }
         }
@@ -226,6 +261,46 @@
         }
         isRecording = !isRecording;
     });
+
+        document.getElementById('btn-record-display').addEventListener('click', function(){
+            fetch('/getRecordedData/', {
+                method: 'GET',
+                headers: {
+                    'X-CSRFToken' : '{{csrf_token}}'
+                }
+            }).then(response => {
+                document.getElementById('displayRecordingModal').style.display = 'block';
+                if(response.ok){
+                    response.json().then(data => {
+                     
+                        // inject data into modal
+                        const recordingList = document.getElementById('recordingList');
+                        recordingList.innerHTML = '';
+                        data['files'].forEach(recording => {
+                            const item = document.createElement('a');
+                            item.href = '#';
+                            item.className = 'block px-4 py-2 text-sm leading-5 text-gray-700 hover:bg-gray-100 focus:outline-none focus:bg-gray-100';
+                            item.textContent = recording;
+                            item.onclick = async function() { 
+                                const module = await import('{% static "js/model_loader.js" %}');
+                                module.replayPatientPosition(recording)
+                                document.getElementById('displayRecordingModal').style.display = 'none';
+                             };
+                            recordingList.appendChild(item);
+                        });
+
+                        
+                      
+                    })
+
+                    
+                }else{
+                    alert('Error fetching file')
+                }
+            }).catch(error => {
+                console.log(error)
+            })
+        });
     
     
 
@@ -236,6 +311,8 @@
         function triggerCustomSTLModel(){
             document.getElementById('hiddenStlInput').click();
         }
+
+
 
         async function initialize2dNIFTI(path, segmented=false) {
                 const module = await import('{% static "js/nifti_loader.js" %}');

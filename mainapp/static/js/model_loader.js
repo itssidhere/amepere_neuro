@@ -46,9 +46,6 @@ fetch('/static/json/config.json')
     .then((response) => response.json())
     .then((json) => { colors = json['colors']; });
 
-setTimeout(() => {
-    replayPatientPosition('wednesday');
-}, 5000);
 
 
 export function set3DPointVisability(visability, color = null) {
@@ -69,7 +66,6 @@ export async function replayPatientPosition(patient) {
 
         // iterate through each row of the csv file
         for (let i = 0; i < patientData.length; i++) {
-            console.log(patientData[i]);
             // convert each row to a vector3
             let x = parseFloat(patientData[i]['x']);
             let y = parseFloat(patientData[i]['y']);
@@ -141,7 +137,7 @@ export function set3DSegVisability(id, visability) {
 }
 
 const offset = new THREE.Vector3();
-offset.set(-0.0125, 0 , -0.0125);
+offset.set(-0.0125, 0, -0.0125);
 
 export function getNeedlePosition() {
     const socket = new WebSocket('ws://' + window.location.host + '/ws/needle_message/');
