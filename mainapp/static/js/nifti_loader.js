@@ -77,7 +77,6 @@ function initBtn() {
     functionBtns.get("entry").addEventListener('click', () => setRefPoint(true));
     functionBtns.get("target").addEventListener('click', () => setRefPoint(false));
     functionBtns.get("measure").addEventListener('click', measure);
-    functionBtns.get("record-display").addEventListener('click', displayRecord);
 
     functionBtns.forEach((value, key) => {
         value.disabled = false;
@@ -755,7 +754,7 @@ function setRefPoint(isEntry) {
         }
 
         update3DPointObject(currPointPos);
-        
+
         setVisPointsFromPos(currPointPos);
 
     } else {
