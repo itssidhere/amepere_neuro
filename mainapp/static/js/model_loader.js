@@ -10,7 +10,7 @@ const container = document.getElementById('threejs-container');
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 2000);
 // camera.LookAt = new THREE.Vector3(0, 0, 800);
-camera.position.z = 800;
+camera.position.z = 600;
 const geometry = new THREE.BufferGeometry();
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -146,6 +146,7 @@ export function getNeedlePosition() {
         // Split data.message using ',' and convert each element to a float
         const coords = data.message.split(",").map(item => parseFloat(item, 10));
         const newPoint = new THREE.Vector3(coords[0], coords[1], coords[2]);
+        newPoint.add(offset);
         drawPoint(newPoint);
     }
 
@@ -307,6 +308,7 @@ export default function loadSTLModel(stlFiles) {
                 count++;
 
                 if (count == stlFiles.length) {
+                    controls.target = new THREE.Vector3(getBallJointtoOriginTranslation().x, getBallJointtoOriginTranslation().y, getBallJointtoOriginTranslation().z);
                     controls.update();
                 }
             },
