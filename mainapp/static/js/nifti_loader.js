@@ -30,7 +30,7 @@ if (localStorage.getItem('visibilities') === null) {
 }
 
 var header, typedImg, typedSeg;
-var normFactor, contrast = 1.2;
+var normFactor, contrast = 1.35;
 
 const scene = new THREE.Scene();
 
@@ -217,24 +217,32 @@ function onMouseMove(evt) {
     }
 }
 
-for (let i = 0; i <= 2; i++) {
-    containers.push(document.getElementById(`nifti-container-${i}`));
-    cameras.push(new THREE.PerspectiveCamera(75, containers[i].clientWidth / containers[i].clientHeight, 0.1, 1000));
-    cameras[i].layers.enable(i + 1);
+init();
 
-    if (i === 0) {
-        cameras[i].rotation.x = - Math.PI / 2;
+function init()
+{
+    for (let i = 0; i <= 2; i++) {
+        containers.push(document.getElementById(`nifti-container-${i}`));
+        cameras.push(new THREE.PerspectiveCamera(75, containers[i].clientWidth / containers[i].clientHeight, 0.1, 1000));
+        cameras[i].layers.enable(i + 1);
+
+        renderers.push(new THREE.WebGLRenderer({ antialias: true, alpha: true }));
+        renderers[i].setSize(containers[i].clientWidth, containers[i].clientHeight);  // Adjust size to fit the grid item.
+        renderers[i].setClearColor(0x000000); // Set a black background color
+
+        const control = new OrbitControls(cameras[i], renderers[i].domElement);
+        control.enableRotate = false;
+
+        actPoints.push(new FixedSizeQueue(100));
     }
-    else if (i === 2) {
-        cameras[i].rotation.y = Math.PI / 2;
-    }
-
-    renderers.push(new THREE.WebGLRenderer({ antialias: true, alpha: true }));
-    renderers[i].setSize(containers[i].clientWidth, containers[i].clientHeight);  // Adjust size to fit the grid item.
-    renderers[i].setClearColor(0x000000); // Set a black background color
-
-    actPoints.push(new FixedSizeQueue(100));
 }
+
+function rotateObjectAroundAxisQuaternion(object, axis, radians) {
+    const quaternion = new THREE.Quaternion();
+    quaternion.setFromAxisAngle(axis, radians);
+    object.applyQuaternion(quaternion);
+}
+
 
 export async function loadNIFTI2D(path, seg) {
 
@@ -297,12 +305,9 @@ async function readSegmentation(path) {
                         console.log("Segmentation", header);
                         let segImage = nifti.readImage(segHeader, data);
 
-                        typedSeg = createTypedData(segHeader.datatypeCode, segImage)
+                        typedSeg = createTypedData(segHeader.datatypeCode, segImage);
 
                         displaySegmentationList();
-
-                        imageData = undefined;
-                        segmentationData = undefined;
                     }
                 }
             };
@@ -369,6 +374,7 @@ function makeSlice(file, start, length) {
 }
 
 function readNIFTI(data) {
+
     if (nifti.isCompressed(data)) {
         data = nifti.decompress(data);
     }
@@ -398,7 +404,7 @@ function readNIFTI(data) {
 
             const texture_data = new Uint8Array(4 * width * height);
             textures[i] = new THREE.DataTexture(texture_data, width, height);
-            const material = new THREE.MeshBasicMaterial({ map: textures[i] });
+            const material = new THREE.MeshBasicMaterial({ map: textures[i], side: THREE.DoubleSide });
             const geometry = new THREE.PlaneGeometry(width, height);
             planes[i] = new THREE.Mesh(geometry, material);
             planes[i].layers.set(i + 1);
@@ -406,7 +412,7 @@ function readNIFTI(data) {
 
             const segmentation_data = new Uint8Array(4 * width * height);
             segmentation_textures[i] = new THREE.DataTexture(segmentation_data, width, height);
-            const segmentation_material = new THREE.MeshBasicMaterial({ map: segmentation_textures[i], transparent: true, opacity: 0.5 });
+            const segmentation_material = new THREE.MeshBasicMaterial({ map: segmentation_textures[i], transparent: true, opacity: 0.5, side: THREE.DoubleSide });
             const segmentation_geometry = new THREE.PlaneGeometry(width, height);
             const segmentation_mesh = new THREE.Mesh(segmentation_geometry, segmentation_material);
             segmentation_mesh.layers.set(i + 1);
@@ -452,7 +458,8 @@ function readNIFTI(data) {
                 segmentation_geometry.scale(1, ratio, 1);
                 planes[i].rotation.x = - Math.PI / 2;
                 segmentation_mesh.rotation.x = - Math.PI / 2;
-                cameras[i].position.y = Math.sqrt(Math.pow(header.dims[1] / 2, 2) + Math.pow(header.dims[2] / 2, 2));
+                cameras[i].position.y = - Math.sqrt(Math.pow(header.dims[1] / 2, 2) + Math.pow(header.dims[2] / 2, 2));
+                cameras[i].rotation.x = Math.PI / 2;
             }
             else if (i === 1) {
                 const ratio = (header.pixDims[3]) / (header.pixDims[1]);
@@ -468,6 +475,7 @@ function readNIFTI(data) {
                 planes[i].rotation.y = Math.PI / 2;
                 segmentation_mesh.rotation.y = Math.PI / 2;
                 cameras[i].position.x = Math.sqrt(Math.pow(header.dims[2] / 2, 2) + Math.pow(header.dims[3] / 2, 2));
+                cameras[i].rotation.y = Math.PI / 2;
             }
 
             // mesh.position.set(header.qoffset_x, header.qoffset_y, header.qoffset_z);
@@ -484,8 +492,6 @@ function readNIFTI(data) {
             }
 
             containers[i].appendChild(renderers[i].domElement);
-            const control = new OrbitControls(cameras[i], renderers[i].domElement);
-            control.enableRotate = false;
 
             function render() {
                 requestAnimationFrame(render);
@@ -493,6 +499,12 @@ function readNIFTI(data) {
             }
 
             render();
+
+            window.onresize = function () {
+                cameras[i].aspect = containers[i].clientWidth / containers[i].clientHeight;
+                cameras[i].updateProjectionMatrix();
+                renderers[i].setSize(containers[i].clientWidth, containers[i].clientHeight);
+            }
         }
         refreshDisplay();
     }
@@ -501,11 +513,10 @@ function readNIFTI(data) {
 // Helper function to update a specific slice view
 function updateSliceView(index, slice) {
     slice = Number(slice);
-    let unit = ["", "m", "mm", "um"];
 
     const slider_value = Math.round(slice * header.pixDims[3 - index]);
 
-    document.getElementById(`nifti-value-${index}`).innerHTML = slider_value + ' ' + unit[header.xyzt_units];
+    document.getElementById(`nifti-value-${index}`).innerHTML = slider_value + ' mm';
 
     let cols, rows, sliceOffset;
 
@@ -523,8 +534,8 @@ function updateSliceView(index, slice) {
 
     sliceOffset = header.dims[1] * header.dims[2];
 
-    imageData = imageData ||  new Uint8Array(4 * cols * rows);
-    segmentationData = segmentationData || new Uint8Array(4 * cols * rows);
+    imageData = new Uint8Array(4 * cols * rows);
+    segmentationData = new Uint8Array(4 * cols * rows);
 
     // console.log(segmentation)
 
@@ -578,12 +589,6 @@ function updateSliceView(index, slice) {
     containers[index].addEventListener('mousedown', (evt) => { isMouseDown = true; onMouseMove(evt) });
     containers[index].addEventListener('mousemove', onMouseMove);
     containers[index].addEventListener('mouseup', () => { isMouseDown = false; count = 0 });
-}
-
-window.onresize = function () {
-    cameras[index].aspect = containers[index].clientWidth / containers[index].clientHeight;
-    cameras[index].updateProjectionMatrix();
-    renderers[index].setSize(containers[index].clientWidth, containers[index].clientHeight);
 }
 
 
@@ -713,11 +718,13 @@ function measure() {
             });
             break;
         case 1: // Choosing Start Point
-            setVisPointsFromPos(new THREE.Vector3(0, 0, 0));
+            currPointPos.set(0, 0, 0);
+            setVisPointsFromPos(currPointPos);
             break;
         case 2: // Choosing End Point
-            setVisPointsFromPos(new THREE.Vector3(0, 0, 0));
             measureStartPos.copy(currPointPos);
+            currPointPos.set(0, 0, 0);
+            setVisPointsFromPos(currPointPos);
             console.log("measureStartPos: ", measureStartPos);
             break;
         case 3: // Finished
