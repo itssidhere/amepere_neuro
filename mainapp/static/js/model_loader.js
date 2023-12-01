@@ -106,6 +106,9 @@ export async function replayPatientPosition(patient) {
             let x = parseFloat(patientData[i]['x']);
             let y = parseFloat(patientData[i]['y']);
             let z = parseFloat(patientData[i]['z']);
+            
+            if (isNaN(x) || isNaN(y) || isNaN(z)) continue;
+
             // let quants = [parseFloat(patientData[i]['q0']), parseFloat(patientData[i]['q1']), parseFloat(patientData[i]['q2']), parseFloat(patientData[i]['q3'])];
             let newPos = new THREE.Vector3(x, y, z);
             // const quaternion = new THREE.Quaternion();
