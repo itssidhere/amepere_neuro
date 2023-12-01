@@ -45,8 +45,11 @@ const segmentation_textures = [];
 const refLineMeshes = [];
 const meaLineMeshes = [];
 
+const recPoints = [];
+const recLineMeshes = [];
+
 const actPoints = [];
-const actGeometies = [];
+const actGeometries = [];
 const actLineMeshes = [];
 
 const visPoints = [];
@@ -90,30 +93,111 @@ function initBtn() {
 
 // function testEmitter() {
 //     const point = new THREE.Vector3(Math.random() * 100, Math.random() * 100, Math.random() * 100);
-//     addActualPoint(point);
+//     addPointToLine(point, true);
 
 //     setTimeout(testEmitter, 3000);
 // }
 
 // setTimeout(testEmitter, 3000);
 
-export function addActualPoint(point) {
+export function addPointToLine(point, isActual) {
+    if (isActual) {
+        for (let i = 0; i < 3; i++) {
+            switch (i) {
+                case 0:
+                    actPoints[i].push(point.x, 0, point.z);
+                    break;
+                case 1:
+                    actPoints[i].push(point.x, point.y, 0);
+                    break;
+                case 2:
+                    actPoints[i].push(0, point.y, point.z);
+                    break;
+            }
+
+            actLineMeshes[i].geometry = new LineGeometry();
+            actLineMeshes[i].geometry.setPositions(actPoints[i].queue);
+            actLineMeshes[i].visible = true;
+        }
+    } else {
+        for (let i = 0; i < 3; i++) {
+            switch (i) {
+                case 0:
+                    recPoints[i].push(point.x, 0, point.z);
+                    break;
+                case 1:
+                    recPoints[i].push(point.x, point.y, 0);
+                    break;
+                case 2:
+                    recPoints[i].push(0, point.y, point.z);
+                    break;
+            }
+
+            recLineMeshes[i].geometry= new LineGeometry();
+            recLineMeshes[i].geometry.setPositions(recPoints[i]);
+            recLineMeshes[i].visible = true;
+        }
+    }
+}
+
+export function displayRecLine(points) {
+    let recPoints = [[], [], []];
+
     for (let i = 0; i < 3; i++) {
         switch (i) {
             case 0:
-                actPoints[i].push(new THREE.Vector3(point.x, 0, point.z));
+                points.forEach(point => { recPoints[i].push(point.x, 0, point.z) });
                 break;
             case 1:
-                actPoints[i].push(new THREE.Vector3(point.x, point.y, 0));
+                points.forEach(point => { recPoints[i].push(point.x, point.y, 0) });
                 break;
             case 2:
-                actPoints[i].push(new THREE.Vector3(0, point.y, point.z));
+                points.forEach(point => { recPoints[i].push(0, point.y, point.z) });
                 break;
         }
 
-        actGeometies[i].setFromPoints(actPoints[i].queue);
-        actGeometies[i].NeedsUpdate = true;
-        actLineMeshes[i].visible = true;
+        recLineMeshes[i].geometry = new LineGeometry();
+        recLineMeshes[i].geometry.setPositions(recPoints[i]);
+        recLineMeshes[i].visible = true;
+    }
+}
+
+export function hideRecLine() {
+    for (let i = 0; i < 3; i++) {
+        recPoints[i] = new Array();
+        recLineMeshes[i].visible = false;
+    }
+}
+
+function updateLine(entry, target, isRef) {
+    let points = [];
+    points.push(entry.x, entry.y, entry.z);
+    points.push(target.x, target.y, target.z);
+
+    update3DLine(points, isRef);
+
+    let lineArray = isRef ? refLineMeshes : meaLineMeshes;
+
+    for (let i = 0; i < 3; i++) {
+        let tempPoints = [];
+        switch (i) {
+            case 0:
+                tempPoints.push(entry.x, 0, entry.z);
+                tempPoints.push(target.x, 0, target.z);
+                break;
+            case 1:
+                tempPoints.push(entry.x, entry.y, 0);
+                tempPoints.push(target.x, target.y, 0);
+                break;
+            case 2:
+                tempPoints.push(0, entry.y, entry.z);
+                tempPoints.push(0, target.y, target.z);
+                break;
+        }
+
+        lineArray[i].geometry.setPositions(tempPoints);
+        lineArray[i].geometry.NeedsUpdate = true;
+        lineArray[i].visible = true;
     }
 }
 
@@ -177,37 +261,6 @@ function getMousePos(event) {
     setVisPointsFromPos(currPointPos);
 }
 
-function updateLine(entry, target, isRef) {
-    let points = [];
-    points.push(entry.x, entry.y, entry.z);
-    points.push(target.x, target.y, target.z);
-
-    update3DLine(points, isRef);
-
-    let lineArray = isRef ? refLineMeshes : meaLineMeshes;
-
-    for (let i = 0; i < 3; i++) {
-        let tempPoints = [];
-        switch (i) {
-            case 0:
-                tempPoints.push(entry.x, 0, entry.z);
-                tempPoints.push(target.x, 0, target.z);
-                break;
-            case 1:
-                tempPoints.push(entry.x, entry.y, 0);
-                tempPoints.push(target.x, target.y, 0);
-                break;
-            case 2:
-                tempPoints.push(0, entry.y, entry.z);
-                tempPoints.push(0, target.y, target.z);
-                break;
-        }
-
-        lineArray[i].geometry.setPositions(tempPoints);
-        lineArray[i].geometry.NeedsUpdate = true;
-        lineArray[i].visible = true;
-    }
-}
 
 var isMouseDown = false;
 
@@ -233,7 +286,8 @@ function init()
         const control = new OrbitControls(cameras[i], renderers[i].domElement);
         control.enableRotate = false;
 
-        actPoints.push(new FixedSizeQueue(100));
+        actPoints.push(new FixedSizeQueue(300));
+        recPoints.push(new Array());
     }
 }
 
@@ -442,15 +496,24 @@ function readNIFTI(data) {
             meaLineMeshes[i].renderOrder = 0 || 999
             meaLineMeshes[i].material.depthTest = false
 
-            const actLineGeometry = new THREE.BufferGeometry();
-            const actLineMaterial = new THREE.LineBasicMaterial({ color: 0xff0000 });
-            actGeometies.push(actLineGeometry);
-            actLineMeshes.push(new THREE.Line(actLineGeometry, actLineMaterial));
+            const actLineGeometry = new LineGeometry();
+            const actLineMaterial = new LineMaterial({ color: 0xff0000, linewidth: 0.01 });
+            actGeometries.push(actLineGeometry);
+            actLineMeshes.push(new Line2(actLineGeometry, actLineMaterial));
             actLineMeshes[i].layers.set(i + 1);
             actLineMeshes[i].visible = true;
             scene.add(actLineMeshes[i]);
             actLineMeshes[i].renderOrder = 0 || 999
             actLineMeshes[i].material.depthTest = false
+
+            const recLineGeometry = new LineGeometry();
+            const recLineMaterial = new LineMaterial({ color: 0xffff00, linewidth: 0.01 });
+            recLineMeshes.push(new Line2(recLineGeometry, recLineMaterial));
+            recLineMeshes[i].layers.set(i + 1);
+            recLineMeshes[i].visible = false;
+            scene.add(recLineMeshes[i]);
+            recLineMeshes[i].renderOrder = 0 || 999
+            recLineMeshes[i].material.depthTest = false
 
             if (i === 0) {
                 const ratio = (header.pixDims[2]) / (header.pixDims[1]);
