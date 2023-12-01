@@ -11,6 +11,18 @@ FixedSizeQueue.prototype.push = function (value) {
     this.queue.push(value);
 }
 
+FixedSizeQueue.prototype.push = function (value0, value1, value2) {
+    if (this.queue.length === this.size || this.queue.length > this.size) {
+        this.queue.shift();
+        this.queue.shift();
+        this.queue.shift();
+    }
+
+    this.queue.push(value0);
+    this.queue.push(value1);
+    this.queue.push(value2);
+}
+
 FixedSizeQueue.prototype.get = function (index) {
     return this.queue[index];
 }

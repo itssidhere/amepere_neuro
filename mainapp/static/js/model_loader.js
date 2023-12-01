@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { STLLoader } from 'stl-loader';
 import { OrbitControls } from 'orbit-control';
-import { getVisability, addActualPoint } from './nifti_loader.js';
+import { getVisability, addPointToLine, hideRecLine, displayRecLine } from './nifti_loader.js';
 import { LineGeometry } from 'line-geometry';
 import { LineMaterial } from 'line-material';
 import { Line2 } from 'line2';
@@ -56,6 +56,42 @@ export function set3DPointVisability(visability, color = null) {
     }
 }
 
+function hideRecordingLine()
+{
+    hideRecLine();
+}
+
+export async function displayPatientPosition(patient) {
+    let patientData = await fetch(`/media/recorded_data/${patient}.csv`);
+
+    if (patientData.ok) {
+        let csvText = await patientData.text();
+        patientData = parseCSV(csvText);
+
+        let allPoints = [];
+
+        // iterate through each row of the csv file
+        for (let i = 0; i < patientData.length; i++) {
+            // convert each row to a vector3
+            let x = parseFloat(patientData[i]['x']);
+            let y = parseFloat(patientData[i]['y']);
+            let z = parseFloat(patientData[i]['z']);
+            
+            if (isNaN(x) || isNaN(y) || isNaN(z)) continue;
+
+            let newPos = new THREE.Vector3(x, y, z);
+            newPos = convertChai3Dto3DPosition(newPos);
+            newPos = convert3Dto2DPosition(newPos);
+            
+            allPoints.push(newPos);
+        }
+
+        displayRecLine(allPoints);
+
+    }
+
+}
+
 export async function replayPatientPosition(patient) {
     let patientData = await fetch(`/media/recorded_data/${patient}.csv`);
 
@@ -74,7 +110,7 @@ export async function replayPatientPosition(patient) {
             let newPos = new THREE.Vector3(x, y, z);
             // const quaternion = new THREE.Quaternion();
             // quaternion.set(quants[0], quants[1], quants[2], quants[3]).normalize();
-            drawPoint(newPos);
+            drawPoint(newPos, false);
             // drawSkull(quaternion);
 
             await new Promise(r => setTimeout(r, 100));
@@ -147,7 +183,7 @@ export function getNeedlePosition() {
         const coords = data.message.split(",").map(item => parseFloat(item, 10));
         const newPoint = new THREE.Vector3(coords[0], coords[1], coords[2]);
         newPoint.add(offset);
-        drawPoint(newPoint);
+        drawPoint(newPoint, true);
     }
 
 
@@ -168,15 +204,16 @@ export function getSkullOrientation() {
     };
 }
 
-function drawPoint(newPoint) {
+function drawPoint(newPoint, isActual) {
     // Check if points array is empty or new point is different from the last point
     if (points.length === 0 || !newPoint.equals(points[points.length - 1])) {
         // console.log(newPoint.x, newPoint.y, newPoint.z)
         newPoint = convertChai3Dto3DPosition(newPoint);
-        needleMesh.position.set(newPoint.x, newPoint.y, newPoint.z);
+
+        if (isActual) needleMesh.position.set(newPoint.x, newPoint.y, newPoint.z);
 
         const converted = convert3Dto2DPosition(newPoint);
-        addActualPoint(converted);
+        addPointToLine(converted, isActual);
     }
 }
 
@@ -191,15 +228,16 @@ function drawSkull(quaternion) {
 
 // function testNeedle() {
 //     t = t - 0.01;
-//     const newPoint = new THREE.Vector3(0.45, 0.16 + t / 2, 0.16);
+//     const newPoint = new THREE.Vector3(0.45, 0.16 + t / 10, 0);
 //     console.log(newPoint)
 //     newPoint.multiplyScalar(1000);
 //     needleMesh.position.set(newPoint.x, newPoint.y, newPoint.z);
 
 //     const converted = convert3Dto2DPosition(newPoint);
-//     addActualPoint(converted);
+//     // addPointToLine(converted, true);
+//     addPointToLine(converted, false);
 
-//     setTimeout(testNeedle, 1000);
+//     setTimeout(testNeedle, 100);
 // }
 
 // setTimeout(testNeedle, 5000);
