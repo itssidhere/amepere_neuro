@@ -102,12 +102,13 @@ export async function replayPatientPosition(patient, shouldDelay = true) {
         let csvText = await patientData.text();
         patientData = parseCSV(csvText);
 
+
         let firstRow = csvText.split("\n")[1].split(",");
 
         drawSkull(new THREE.Quaternion(parseFloat(firstRow[0]), parseFloat(firstRow[1]), parseFloat(firstRow[2]), parseFloat(firstRow[3])));
 
         // iterate through each row of the csv file
-        for (let i = 1; i < patientData.length; i++) {
+        for (let i = 0; i < patientData.length; i++) {
             // convert each row to a vector3
             let x = parseFloat(patientData[i]['x']);
             let y = parseFloat(patientData[i]['y']);
@@ -137,7 +138,7 @@ function parseCSV(csvText) {
     let result = [];
     let headers = lines[0].split(",");
 
-    for (let i = 1; i < lines.length; i++) {
+    for (let i = 2; i < lines.length; i++) {
         let obj = {};
         let currentline = lines[i].split(",");
 
