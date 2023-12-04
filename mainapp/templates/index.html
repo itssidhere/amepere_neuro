@@ -214,6 +214,14 @@
         var displayRecordingModal = document.getElementById('displayRecordingModal');
         var span2 = document.getElementsByClassName("close")[1];
 
+        var modelLoaderModule = null;
+
+        async function init () {
+            modelLoaderModule = await import('{% static "js/model_loader.js" %}');
+        }
+
+        init();
+
         span.onclick = function() {
             document.getElementById('passwordModal').style.display = 'none';
 
@@ -246,16 +254,20 @@
             document.getElementById('passwordModal').style.display = 'block';
         })
 
-        document.getElementById('btn-record').addEventListener('click', function(){
+        document.getElementById('btn-record').addEventListener('click', async function(){
            if(!isRecording){
             socket.send(JSON.stringify({command: 'start_record'}));
             this.textContent = 'Stop Record';
            }else {
             // Stop recording
-            var filename = prompt("Please enter the filename for the CSV", "recorded_data");
-            if (filename != null && filename !== "") {
+            var foldername = prompt("Please enter the folder name", "recorded_data");
+            if (foldername != null && foldername !== "") {
                 // Stop recording and send filename
-                socket.send(JSON.stringify({command: 'stop_record', filename: filename+'.csv'}));
+                if(!modelLoaderModule){
+                    modelLoaderModule = await import('{% static "js/model_loader.js" %}');
+                }
+                console.log(modelLoaderModule.currentSkullPosition);
+                socket.send(JSON.stringify({command: 'stop_record', foldername: foldername, header: modelLoaderModule.currentSkullPosition}));
                 this.textContent = 'Start Record';
             }
         }
@@ -272,21 +284,108 @@
                 document.getElementById('displayRecordingModal').style.display = 'block';
                 if(response.ok){
                     response.json().then(data => {
+
+                        
+                        data = data['files']
+                        // display the folder name and onClick expand to display underlying files, onClick of file, load the file
+                        // folder name is the key, files are the values
+
                      
                         // inject data into modal
                         const recordingList = document.getElementById('recordingList');
                         recordingList.innerHTML = '';
-                        data['files'].forEach(recording => {
-                            const item = document.createElement('a');
-                            item.href = '#';
-                            item.className = 'block px-4 py-2 text-sm leading-5 text-gray-700 hover:bg-gray-100 focus:outline-none focus:bg-gray-100';
-                            item.textContent = recording;
-                            item.onclick = async function() { 
-                                const module = await import('{% static "js/model_loader.js" %}');
-                                module.replayPatientPosition(recording)
-                                document.getElementById('displayRecordingModal').style.display = 'none';
-                             };
-                            recordingList.appendChild(item);
+
+                        // add a search text field to search folders 
+
+                        const searchField = document.createElement('input');
+                        searchField.type = 'text';
+                        searchField.placeholder = 'Search';
+                        searchField.className = 'search-field';
+                        searchField.style.marginBottom = '1rem';
+                        searchField.style.borderRadius = '0.25rem';
+                        searchField.style.border = '1px solid black';
+                        searchField.style.padding = '0.5rem';
+                        searchField.onkeyup = function() {
+                            const filter = searchField.value.toUpperCase();
+                            const folders = recordingList.getElementsByClassName('folder');
+                            for (let i = 0; i < folders.length; i++) {
+                                const folderName = folders[i].getElementsByClassName('folder-name')[0];
+                                if (folderName.innerHTML.toUpperCase().indexOf(filter) > -1) {
+                                    folders[i].style.display = '';
+                                } else {
+                                    folders[i].style.display = 'none';
+                                }
+                            }
+                        };
+
+
+
+
+                        recordingList.appendChild(searchField);
+                        
+                        Object.keys(data).forEach(folderName => {
+                            const folder = document.createElement('div');
+                            folder.className = 'folder';
+                            folder.innerHTML = `<span class="folder-name">${folderName}</span>`;
+                            const files = document.createElement('div');
+                            files.className = 'files';
+                            // keep the files hidden by default and only show when folder is clicked
+                            files.style.display = 'none';
+                            data[folderName].forEach(fileName => {
+                                const file = document.createElement('div');
+                                file.className = 'file';
+                                file.innerHTML = `<span class="file-name">${fileName}</span>`;
+                                file.onclick = async function() { 
+                                    const module = await import('{% static "js/model_loader.js" %}');
+                                    module.replayPatientPosition(fileName, false)
+                                    document.getElementById('displayRecordingModal').style.display = 'none';
+                                };
+
+                                // long press to delete file
+                                file.onmousedown = function() {
+                                    let timer = setTimeout(async function() {
+                                        const module = await import('{% static "js/model_loader.js" %}');
+                                        module.replayPatientPosition(fileName, true)
+                                        document.getElementById('displayRecordingModal').style.display = 'none';
+                                    }, 1000);
+                                    file.onmouseup = function() {
+                                        clearTimeout(timer);
+                                    };
+                                };
+
+                                files.appendChild(file);
+                            });
+                            folder.onclick = function() {
+                                if (files.style.display === 'none') {
+                                    files.style.display = 'block';
+                                } else {
+                                    files.style.display = 'none';
+                                }
+                            };
+
+                            // show cursor as pointer when hovering over folder or file
+                            folder.style.cursor = 'pointer';
+                            files.style.cursor = 'pointer';
+
+                            // style the files to appear as a list and indent them, make a line connecting the folder and files
+                            files.style.listStyleType = 'none';
+                            files.style.paddingLeft = '1rem';
+                            files.style.borderLeft = '1px solid black';
+                            files.style.marginLeft = '1rem';
+                            
+
+                            // show a folder icon font awesome icon next to the folder name
+                            const folderIcon = document.createElement('i');
+                            folderIcon.className = 'fas fa-folder';
+                            folderIcon.style.marginRight = '0.5rem';
+                            folder.prepend(folderIcon);
+            
+
+                            folder.appendChild(files);
+                            recordingList.appendChild(folder);
+
+                            // add a bottom padding to the folder
+                            folder.style.paddingBottom = '0.5rem';
                         });
 
                         

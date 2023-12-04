@@ -217,15 +217,21 @@ def get_recorded_data(request):
     MEDIA_DIR = BASE_DIR / "media"
     MEDIA_LOCAL = f"/media/recorded_data"
 
-    recorded_data_dir = MEDIA_DIR.joinpath('recorded_data')
+    # date in form of {folder_name: [file_names]}
 
-    recorded_data_files = [os.path.join(MEDIA_LOCAL, f) for f in os.listdir(recorded_data_dir) if f.endswith(".csv")]
+    recorded_data_files = {}
+    for folder in os.listdir(MEDIA_DIR.joinpath('recorded_data')):
+        folder_path = MEDIA_DIR.joinpath('recorded_data').joinpath(folder)
+        if os.path.isdir(folder_path):
+            recorded_data_files[folder] = [f for f in os.listdir(folder_path) if f.endswith(".csv")]
+            # remove .csv from the file name
+            recorded_data_files[folder] = [f.replace(".csv", "") for f in recorded_data_files[folder]]
 
-    # only return the file name
-    recorded_data_files = [os.path.basename(f) for f in recorded_data_files]
-
-    # remove the .csv extension
-    recorded_data_files = [f.replace(".csv", "") for f in recorded_data_files]
+            # try to sort by the first number in the file name if possible
+            try:
+                recorded_data_files[folder] = sorted(recorded_data_files[folder], key=lambda x: int(x.split("_")[0]))
+            except:
+                pass
 
     return JsonResponse({"success": True, "files": recorded_data_files})
 

@@ -47,6 +47,8 @@ fetch('/static/json/config.json')
     .then((json) => { colors = json['colors']; });
 
 
+// current skull quaternion as string
+export var currentSkullPosition = "";
 
 export function set3DPointVisability(visability, color = null) {
     refPointMesh.visible = visability;
@@ -56,8 +58,7 @@ export function set3DPointVisability(visability, color = null) {
     }
 }
 
-function hideRecordingLine()
-{
+function hideRecordingLine() {
     hideRecLine();
 }
 
@@ -76,13 +77,13 @@ export async function displayPatientPosition(patient) {
             let x = parseFloat(patientData[i]['x']);
             let y = parseFloat(patientData[i]['y']);
             let z = parseFloat(patientData[i]['z']);
-            
+
             if (isNaN(x) || isNaN(y) || isNaN(z)) continue;
 
             let newPos = new THREE.Vector3(x, y, z);
             newPos = convertChai3Dto3DPosition(newPos);
             newPos = convert3Dto2DPosition(newPos);
-            
+
             allPoints.push(newPos);
         }
 
@@ -92,7 +93,7 @@ export async function displayPatientPosition(patient) {
 
 }
 
-export async function replayPatientPosition(patient) {
+export async function replayPatientPosition(patient, shouldDelay = true) {
     let patientData = await fetch(`/media/recorded_data/${patient}.csv`);
 
     if (patientData.ok) {
@@ -106,7 +107,7 @@ export async function replayPatientPosition(patient) {
             let x = parseFloat(patientData[i]['x']);
             let y = parseFloat(patientData[i]['y']);
             let z = parseFloat(patientData[i]['z']);
-            
+
             if (isNaN(x) || isNaN(y) || isNaN(z)) continue;
 
             // let quants = [parseFloat(patientData[i]['q0']), parseFloat(patientData[i]['q1']), parseFloat(patientData[i]['q2']), parseFloat(patientData[i]['q3'])];
@@ -116,11 +117,13 @@ export async function replayPatientPosition(patient) {
             drawPoint(newPos, false);
             // drawSkull(quaternion);
 
-            await new Promise(r => setTimeout(r, 100));
+            if (shouldDelay) {
+                await new Promise(r => setTimeout(r, 100));
+            }
+
         }
 
     }
-
 }
 
 function parseCSV(csvText) {
@@ -222,7 +225,7 @@ function drawPoint(newPoint, isActual) {
 
 function drawSkull(quaternion) {
     if (ballJointMesh) {
-
+        currentSkullPosition = `${quaternion.x},${quaternion.y},${quaternion.z},${quaternion.w}`;
         ballJointMesh.setRotationFromQuaternion(convertBallJointRotationtoSkullRotation(quaternion));
     }
 }
