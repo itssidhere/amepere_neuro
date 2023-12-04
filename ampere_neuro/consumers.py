@@ -93,7 +93,7 @@ class RecordMessageConsumer(WebsocketConsumer):
         with open(filename, 'w', newline='') as csvfile:
             writer = csv.writer(csvfile)
             writer.writerow(['time', 'x', 'y', 'z','d', 'q0', 'q1', 'q2', 'q3', 'force_x', 'force_y', 'force_z'])
-            writer.writerow([header])
+            writer.writerow(header.split(','))
             for row in data:
                 current_timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 curr_row = []

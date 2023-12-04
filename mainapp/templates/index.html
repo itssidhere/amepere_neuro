@@ -266,7 +266,7 @@
                 if(!modelLoaderModule){
                     modelLoaderModule = await import('{% static "js/model_loader.js" %}');
                 }
-                console.log(modelLoaderModule.currentSkullPosition);
+              
                 socket.send(JSON.stringify({command: 'stop_record', foldername: foldername, header: modelLoaderModule.currentSkullPosition}));
                 this.textContent = 'Start Record';
             }
@@ -337,7 +337,7 @@
                                 file.innerHTML = `<span class="file-name">${fileName}</span>`;
                                 file.onclick = async function() { 
                                     const module = await import('{% static "js/model_loader.js" %}');
-                                    module.replayPatientPosition(fileName, false)
+                                    module.replayPatientPosition(`${folderName}/${fileName}`  , false)
                                     document.getElementById('displayRecordingModal').style.display = 'none';
                                 };
 
@@ -345,7 +345,7 @@
                                 file.onmousedown = function() {
                                     let timer = setTimeout(async function() {
                                         const module = await import('{% static "js/model_loader.js" %}');
-                                        module.replayPatientPosition(fileName, true)
+                                        module.replayPatientPosition(`${folderName}/${fileName}`, true)
                                         document.getElementById('displayRecordingModal').style.display = 'none';
                                     }, 1000);
                                     file.onmouseup = function() {
