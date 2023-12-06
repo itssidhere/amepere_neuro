@@ -227,9 +227,9 @@ def get_recorded_data(request):
             # remove .csv from the file name
             recorded_data_files[folder] = [f.replace(".csv", "") for f in recorded_data_files[folder]]
 
-            # try to sort by the first number in the file name if possible
+            # try to parse the first _ separated value as date and sort the files
             try:
-                recorded_data_files[folder] = sorted(recorded_data_files[folder], key=lambda x: int(x.split("_")[0]))
+                recorded_data_files[folder] = sorted(recorded_data_files[folder], key=lambda x: datetime.datetime.strptime(x.split("_")[0], "%Y-%m-%d-%H-%M-%S"))
             except:
                 pass
 

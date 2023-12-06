@@ -70,7 +70,7 @@ class RecordMessageConsumer(WebsocketConsumer):
         
         elif data.get('command') == "stop_record":
             self._recording = False
-            self.save_to_csv(self._recorded_data, data.get('foldername'), data.get('header'))
+            self.save_to_csv(self._recorded_data, data.get('foldername'), data.get('patient_id') , data.get('header'))
 
 
     def chat_message(self, event):
@@ -79,7 +79,7 @@ class RecordMessageConsumer(WebsocketConsumer):
         if self._recording:
             self._recorded_data.append(event.get("text"))
     
-    def save_to_csv(self, data, foldername, header="header"):
+    def save_to_csv(self, data, foldername, patient_id , header="header"):
         folder_path = f'media/recorded_data/{foldername}'
         # create recorded_data folder if not exists
         if not os.path.exists(folder_path):
@@ -89,7 +89,8 @@ class RecordMessageConsumer(WebsocketConsumer):
         num_files = len([f for f in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, f))])+1
 
         # create a new csv file with number_date
-        filename = f'{folder_path}/{num_files}_{datetime.datetime.now().strftime("%Y-%m-%d")}.csv'
+        curr_date_with_hour_minute = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+        filename = f'{folder_path}/{curr_date_with_hour_minute}_{patient_id}_{num_files}.csv'
         with open(filename, 'w', newline='') as csvfile:
             writer = csv.writer(csvfile)
             writer.writerow(['time', 'x', 'y', 'z','d', 'q0', 'q1', 'q2', 'q3', 'force_x', 'force_y', 'force_z'])

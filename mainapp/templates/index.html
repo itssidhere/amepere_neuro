@@ -266,8 +266,11 @@
                 if(!modelLoaderModule){
                     modelLoaderModule = await import('{% static "js/model_loader.js" %}');
                 }
-              
-                socket.send(JSON.stringify({command: 'stop_record', foldername: foldername, header: modelLoaderModule.currentSkullPosition}));
+                // split by . to remove the extension
+                let patient_id = selectedModel.split('.')[0];
+                // replace _ with - to match the folder name
+                patient_id = patient_id.replace(/_/g, '-');
+                socket.send(JSON.stringify({command: 'stop_record', patient_id: patient_id, foldername: foldername, header: modelLoaderModule.currentSkullPosition}));
                 this.textContent = 'Start Record';
             }
         }
