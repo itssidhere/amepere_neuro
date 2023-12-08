@@ -59,7 +59,7 @@ def send_needle_messsage(sid, data):
 
 @sio.event
 def send_record_message(sid, data):
-    print("Received record message from", sid, ":", data)
+    # print("Received record message from", sid, ":", data)
     # send current time to string
     dateToStr = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     sio.emit("record_message", dateToStr, sid)

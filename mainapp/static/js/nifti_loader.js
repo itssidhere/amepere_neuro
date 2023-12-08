@@ -6,10 +6,10 @@ import { LineMaterial } from 'line-material';
 import { Line2 } from 'line2';
 import { FixedSizeQueue } from './FixedSizeQueue.js';
 
+// Read config file from json
 let colors = {};
 let names = {};
 let visibilities = {};
-
 fetch('/static/json/config.json')
     .then((response) => response.json())
     .then((json) => {
@@ -17,7 +17,7 @@ fetch('/static/json/config.json')
         names = json['names'];
     });
 
-
+// If visibilities is not in local storage, fetch from json and store it 
 if (localStorage.getItem('visibilities') === null) {
     fetch('/static/json/visibilities.json', { cache: "no-cache" })
         .then((response) => response.json())
@@ -29,11 +29,20 @@ if (localStorage.getItem('visibilities') === null) {
     visibilities = JSON.parse(localStorage.getItem('visibilities'));
 }
 
-var header, typedImg, typedSeg;
-var normFactor, contrast = 1.35;
 
+// Adjust MRI contrast here
+var contrast = 1.35;
+
+// header: NIFTI header
+// imageData: Original NIFTI image data
+// segmentationData: Original NIFTI segmentation data
+// typedImg: NIFTI image data, converted for visualization
+// typedSeg: NIFTI segmentation data, converted for visualization
+// normFactor: Normalization factor for image data
+var header, imageData, segmentationData, typedImg, typedSeg, normFactor;
+
+// THREE.js setup
 const scene = new THREE.Scene();
-
 const containers = [];
 const cameras = [];
 const renderers = [];
@@ -42,34 +51,70 @@ const planes = [];
 const textures = [];
 const segmentation_textures = [];
 
+// Reference and Measurement Line Meshes
 const refLineMeshes = [];
 const meaLineMeshes = [];
 
+// Recording Points Array and Line Meshes
 const recPoints = [];
 const recLineMeshes = [];
 
+// Actual Points Array and Line Meshes
 const actPoints = [];
-const actGeometries = [];
 const actLineMeshes = [];
 
+// Helper Point (Shown when setting entry/target point and measuring)
 const visPoints = [];
 const currPointPos = new THREE.Vector3();
+let isMouseDown = false;
 
+// Entry and Target Point
 const entryPos = new THREE.Vector3();
 const targetPos = new THREE.Vector3();
 
+// Measure Start and End Point
 const measureStartPos = new THREE.Vector3();
 const measureEndPos = new THREE.Vector3();
 
 let count = 0;
 let isSelectingPoint = false;
 let mesauringStatus = 0;
-let isRecording = false;
 
 const functionBtns = new Map();
-let imageData;
-let segmentationData;
 
+
+// function testEmitter() {
+//     const point = new THREE.Vector3(Math.random() * 100, Math.random() * 100, Math.random() * 100);
+//     addPointToLine(point, true);
+
+//     setTimeout(testEmitter, 3000);
+// }
+
+// setTimeout(testEmitter, 3000);
+
+init();
+
+function init()
+{
+    // Scene setup for three views
+    for (let i = 0; i <= 2; i++) {
+        containers.push(document.getElementById(`nifti-container-${i}`));
+        cameras.push(new THREE.PerspectiveCamera(75, containers[i].clientWidth / containers[i].clientHeight, 0.1, 1000));
+        cameras[i].layers.enable(i + 1);
+
+        renderers.push(new THREE.WebGLRenderer({ antialias: true, alpha: true }));
+        renderers[i].setSize(containers[i].clientWidth, containers[i].clientHeight);  // Adjust size to fit the grid item.
+        renderers[i].setClearColor(0x000000); // Set a black background color
+
+        const control = new OrbitControls(cameras[i], renderers[i].domElement);
+        control.enableRotate = false;
+
+        actPoints.push(new FixedSizeQueue(300));
+        recPoints.push(new Array());
+    }
+}
+
+// Initialize the buttons and the button map
 function initBtn() {
     functionBtns.set("entry", document.getElementById('btn-entry'));
     functionBtns.set("target", document.getElementById('btn-target'));
@@ -90,214 +135,7 @@ function initBtn() {
     });
 }
 
-
-// function testEmitter() {
-//     const point = new THREE.Vector3(Math.random() * 100, Math.random() * 100, Math.random() * 100);
-//     addPointToLine(point, true);
-
-//     setTimeout(testEmitter, 3000);
-// }
-
-// setTimeout(testEmitter, 3000);
-
-export function addPointToLine(point, isActual) {
-    if (isActual) {
-        for (let i = 0; i < 3; i++) {
-            switch (i) {
-                case 0:
-                    actPoints[i].push(point.x, 0, point.z);
-                    break;
-                case 1:
-                    actPoints[i].push(point.x, point.y, 0);
-                    break;
-                case 2:
-                    actPoints[i].push(0, point.y, point.z);
-                    break;
-            }
-
-            actLineMeshes[i].geometry = new LineGeometry();
-            actLineMeshes[i].geometry.setPositions(actPoints[i].queue);
-            actLineMeshes[i].visible = true;
-        }
-    } else {
-        for (let i = 0; i < 3; i++) {
-            switch (i) {
-                case 0:
-                    recPoints[i].push(point.x, 0, point.z);
-                    break;
-                case 1:
-                    recPoints[i].push(point.x, point.y, 0);
-                    break;
-                case 2:
-                    recPoints[i].push(0, point.y, point.z);
-                    break;
-            }
-
-            recLineMeshes[i].geometry= new LineGeometry();
-            recLineMeshes[i].geometry.setPositions(recPoints[i]);
-            recLineMeshes[i].visible = true;
-        }
-    }
-}
-
-export function displayRecLine(points) {
-    let recPoints = [[], [], []];
-
-    for (let i = 0; i < 3; i++) {
-        switch (i) {
-            case 0:
-                points.forEach(point => { recPoints[i].push(point.x, 0, point.z) });
-                break;
-            case 1:
-                points.forEach(point => { recPoints[i].push(point.x, point.y, 0) });
-                break;
-            case 2:
-                points.forEach(point => { recPoints[i].push(0, point.y, point.z) });
-                break;
-        }
-
-        recLineMeshes[i].geometry = new LineGeometry();
-        recLineMeshes[i].geometry.setPositions(recPoints[i]);
-        recLineMeshes[i].visible = true;
-    }
-}
-
-export function hideRecLine() {
-    for (let i = 0; i < 3; i++) {
-        recPoints[i] = new Array();
-        recLineMeshes[i].visible = false;
-    }
-}
-
-function updateLine(entry, target, isRef) {
-    let points = [];
-    points.push(entry.x, entry.y, entry.z);
-    points.push(target.x, target.y, target.z);
-
-    update3DLine(points, isRef);
-
-    let lineArray = isRef ? refLineMeshes : meaLineMeshes;
-
-    for (let i = 0; i < 3; i++) {
-        let tempPoints = [];
-        switch (i) {
-            case 0:
-                tempPoints.push(entry.x, 0, entry.z);
-                tempPoints.push(target.x, 0, target.z);
-                break;
-            case 1:
-                tempPoints.push(entry.x, entry.y, 0);
-                tempPoints.push(target.x, target.y, 0);
-                break;
-            case 2:
-                tempPoints.push(0, entry.y, entry.z);
-                tempPoints.push(0, target.y, target.z);
-                break;
-        }
-
-        lineArray[i].geometry.setPositions(tempPoints);
-        lineArray[i].geometry.NeedsUpdate = true;
-        lineArray[i].visible = true;
-    }
-}
-
-
-function getMousePos(event) {
-    if (!isSelectingPoint && !(mesauringStatus == 1 || mesauringStatus == 2)) return;
-
-    if (count > 0) {
-        count--;
-        return;
-    }
-
-    count = 10;
-    const containerID = Number(event.target.parentElement.id.split('-')[2]);
-    const rect = document.getElementById(`nifti-container-${containerID}`).getBoundingClientRect();
-    const raycaster = new THREE.Raycaster();
-
-    let pointer = new THREE.Vector2();
-
-    pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-    pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-
-    raycaster.layers.set(containerID + 1);
-    raycaster.setFromCamera(pointer, cameras[containerID]);
-
-    const intersects = raycaster.intersectObject(planes[containerID]);
-    if (intersects.length === 0) return;
-
-    currPointPos.copy(intersects[0].point);
-
-    switch (containerID) {
-        case 0:
-            currPointPos.y = Math.round(sliders[0].value - (header.dims[3] - 1) / 2);
-            break;
-        case 1:
-            currPointPos.z = Math.round(sliders[1].value - (header.dims[2] - 1) / 2);
-            break;
-        case 2:
-            currPointPos.x = Math.round(sliders[2].value - (header.dims[1] - 1) / 2);
-            break;
-    }
-
-    const newSliderValues =
-        [
-            Math.round((header.dims[3] - 1) / 2 + currPointPos.y),
-            Math.round((header.dims[2] - 1) / 2 + currPointPos.z),
-            Math.round((header.dims[1] - 1) / 2 + currPointPos.x)
-        ];
-
-    const pointFloat = new Float32Array(currPointPos);
-    // console.log(pointFloat);
-    for (let i = 0; i < 3; i++) {
-        if (sliders[i].value !== newSliderValues[i] && i !== containerID) {
-            sliders[i].value = newSliderValues[i];
-            sliders[i].oninput();
-        }
-    }
-
-    update3DPointObject(pointFloat);
-
-    setVisPointsFromPos(currPointPos);
-}
-
-
-var isMouseDown = false;
-
-function onMouseMove(evt) {
-    if (isMouseDown) {
-        getMousePos(evt);
-    }
-}
-
-init();
-
-function init()
-{
-    for (let i = 0; i <= 2; i++) {
-        containers.push(document.getElementById(`nifti-container-${i}`));
-        cameras.push(new THREE.PerspectiveCamera(75, containers[i].clientWidth / containers[i].clientHeight, 0.1, 1000));
-        cameras[i].layers.enable(i + 1);
-
-        renderers.push(new THREE.WebGLRenderer({ antialias: true, alpha: true }));
-        renderers[i].setSize(containers[i].clientWidth, containers[i].clientHeight);  // Adjust size to fit the grid item.
-        renderers[i].setClearColor(0x000000); // Set a black background color
-
-        const control = new OrbitControls(cameras[i], renderers[i].domElement);
-        control.enableRotate = false;
-
-        actPoints.push(new FixedSizeQueue(300));
-        recPoints.push(new Array());
-    }
-}
-
-function rotateObjectAroundAxisQuaternion(object, axis, radians) {
-    const quaternion = new THREE.Quaternion();
-    quaternion.setFromAxisAngle(axis, radians);
-    object.applyQuaternion(quaternion);
-}
-
-
+// Load the NIFTI file (seg: whether to load the segmentation file)
 export async function loadNIFTI2D(path, seg) {
 
     while (scene.children.length > 0) {
@@ -320,6 +158,7 @@ export async function loadNIFTI2D(path, seg) {
     console.log("loadNIFTI2D done, segmentation: ", seg);
 }
 
+// Read the image file from the given path
 async function readImage(path) {
     await fetch(path)
         .then(res => res.blob()) // Gets the response and returns it as a blob
@@ -338,7 +177,7 @@ async function readImage(path) {
 
 }
 
-
+// Read the segmentation file from the given path
 async function readSegmentation(path) {
     await fetch(path)
         .then(res => res.blob()) // Gets the response and returns it as a blob
@@ -370,6 +209,7 @@ async function readSegmentation(path) {
     return;
 }
 
+// Create a typed array from the original data
 function createTypedData(dataTypeCode, source) {
     let newArray;
 
@@ -405,6 +245,7 @@ function createTypedData(dataTypeCode, source) {
     return newArray;
 }
 
+// Create a slice of the file
 function makeSlice(file, start, length) {
     let fileType = (typeof File);
 
@@ -427,8 +268,8 @@ function makeSlice(file, start, length) {
     return null;
 }
 
+// Read the NIFTI file
 function readNIFTI(data) {
-
     if (nifti.isCompressed(data)) {
         data = nifti.decompress(data);
     }
@@ -440,16 +281,14 @@ function readNIFTI(data) {
 
         typedImg = createTypedData(header.datatypeCode, niftiImage);
 
+        // Image normalization
         let max = 0;
-
         for (let i = 0; i < typedImg.length; i++) {
             if (typedImg[i] > max) max = typedImg[i];
         }
-
         normFactor = 255 / max;
 
-        // scene.add(new THREE.AxesHelper(100));
-
+        // Scene setup for three views
         for (let i = 0; i <= 2; i++) {
             let width, height;
             if (i === 0) { width = header.dims[1]; height = header.dims[2]; }
@@ -498,7 +337,6 @@ function readNIFTI(data) {
 
             const actLineGeometry = new LineGeometry();
             const actLineMaterial = new LineMaterial({ color: 0xff0000, linewidth: 0.01 });
-            actGeometries.push(actLineGeometry);
             actLineMeshes.push(new Line2(actLineGeometry, actLineMaterial));
             actLineMeshes[i].layers.set(i + 1);
             actLineMeshes[i].visible = true;
@@ -541,9 +379,6 @@ function readNIFTI(data) {
                 cameras[i].rotation.y = Math.PI / 2;
             }
 
-            // mesh.position.set(header.qoffset_x, header.qoffset_y, header.qoffset_z);
-            // segmentation_mesh.position.set(header.qoffset_x, header.qoffset_y, header.qoffset_z);
-
             scene.add(segmentation_mesh);
             scene.add(planes[i]);
 
@@ -573,12 +408,11 @@ function readNIFTI(data) {
     }
 }
 
-// Helper function to update a specific slice view
+// Update the slice view
 function updateSliceView(index, slice) {
     slice = Number(slice);
 
     const slider_value = Math.round(slice * header.pixDims[3 - index]);
-
     document.getElementById(`nifti-value-${index}`).innerHTML = slider_value + ' mm';
 
     let cols, rows, sliceOffset;
@@ -600,8 +434,7 @@ function updateSliceView(index, slice) {
     imageData = new Uint8Array(4 * cols * rows);
     segmentationData = new Uint8Array(4 * cols * rows);
 
-    // console.log(segmentation)
-
+    // Slice the 3D MRI data
     for (let row = 0; row < rows; row++) {
         let rowOffset = row * cols;
         for (let col = 0; col < cols; col++) {
@@ -662,15 +495,13 @@ function refreshDisplay() {
     }
 }
 
-
+// Display the segmentation list on the left bar
 function displaySegmentationList() {
     const leftBar = document.getElementById('left-bar');
     leftBar.innerHTML = '';
-
     leftBar.appendChild(createSegmentDiv(0));
 
     let segmentItems = [];
-
     let existingSegments = [];
 
     for (let i = 0; i < typedSeg.length; i++) {
@@ -689,6 +520,7 @@ function displaySegmentationList() {
     });
 }
 
+// Create a div in the list for each segmentation
 function createSegmentDiv(id) {
     const segmentDiv = document.createElement('div');
     segmentDiv.className = 'segment';
@@ -723,7 +555,8 @@ function createSegmentDiv(id) {
     return segmentDiv;
 }
 
-function refreshSegmentationList(id, visability) {
+// Update the segmentation div UI in the list
+function updateSegmentationinList(id, visability) {
     let button = document.getElementById(`segment-button-${id}`);
     let icon = button.querySelector('div');
     if (visability === true) {
@@ -735,11 +568,12 @@ function refreshSegmentationList(id, visability) {
     }
 }
 
+// Toggle the visability of a segmentation
 function set2DSegVisability(id) {
     visibilities[id] = !visibilities[id];
     refreshDisplay();
     set3DSegVisability(id, visibilities[id]);
-    refreshSegmentationList(id, visibilities[id]);
+    updateSegmentationinList(id, visibilities[id]);
 
     localStorage.setItem('visibilities', JSON.stringify(visibilities));
 }
@@ -748,6 +582,7 @@ export function getVisability(id) {
     return visibilities[id];
 }
 
+// Set the visability of the helper point
 function setPointVisability(inProgress, color) {
     for (let i = 0; i < 3; i++) {
         visPoints[i].visible = inProgress;
@@ -757,6 +592,7 @@ function setPointVisability(inProgress, color) {
     set3DPointVisability(inProgress, color);
 }
 
+// Measure the distance between two points
 function measure() {
     mesauringStatus = (mesauringStatus + 1) % 4;
 
@@ -800,12 +636,7 @@ function measure() {
     }
 }
 
-
-
-function displayRecord() {
-    alert('Displaying recorded data');
-}
-
+// Set the reference point from current helper point position
 function setRefPoint(isEntry) {
     const btn = isEntry ? functionBtns.get("entry") : functionBtns.get("target");
     isSelectingPoint = !isSelectingPoint;
@@ -842,6 +673,7 @@ function setRefPoint(isEntry) {
     }
 }
 
+// Set button UI 
 function setBtnStatus(btn, inProgress) {
     if (inProgress) {
         functionBtns.forEach((value, key) => {
@@ -870,6 +702,7 @@ function setBtnStatus(btn, inProgress) {
 
 }
 
+// Set the position of the helper point
 function setVisPointsFromPos(pos) {
     for (let i = 0; i < 3; i++) {
         visPoints[i].position.set(pos.x, pos.y, pos.z);
@@ -884,5 +717,153 @@ function setVisPointsFromPos(pos) {
                 visPoints[i].position.x = 0;
                 break;
         }
+    }
+}
+
+// Add a point to the actual or recording line
+export function addPointToLine(point, isActual) {
+    if (isActual) {
+        for (let i = 0; i < 3; i++) {
+            switch (i) {
+                case 0:
+                    actPoints[i].push(point.x, 0, point.z);
+                    break;
+                case 1:
+                    actPoints[i].push(point.x, point.y, 0);
+                    break;
+                case 2:
+                    actPoints[i].push(0, point.y, point.z);
+                    break;
+            }
+
+            actLineMeshes[i].geometry = new LineGeometry();
+            actLineMeshes[i].geometry.setPositions(actPoints[i].queue);
+            actLineMeshes[i].visible = true;
+        }
+    } else {
+        for (let i = 0; i < 3; i++) {
+            switch (i) {
+                case 0:
+                    recPoints[i].push(point.x, 0, point.z);
+                    break;
+                case 1:
+                    recPoints[i].push(point.x, point.y, 0);
+                    break;
+                case 2:
+                    recPoints[i].push(0, point.y, point.z);
+                    break;
+            }
+
+            recLineMeshes[i].geometry = new LineGeometry();
+            recLineMeshes[i].geometry.setPositions(recPoints[i]);
+            recLineMeshes[i].visible = true;
+        }
+    }
+}
+
+// Hide the recording line
+export function hideRecLine() {
+    for (let i = 0; i < 3; i++) {
+        recPoints[i] = new Array();
+        recLineMeshes[i].visible = false;
+    }
+}
+
+// Update the reference line or measurement line
+function updateLine(entry, target, isRef) {
+    let points = [];
+    points.push(entry.x, entry.y, entry.z);
+    points.push(target.x, target.y, target.z);
+
+    update3DLine(points, isRef);
+
+    let lineArray = isRef ? refLineMeshes : meaLineMeshes;
+
+    for (let i = 0; i < 3; i++) {
+        let tempPoints = [];
+        switch (i) {
+            case 0:
+                tempPoints.push(entry.x, 0, entry.z);
+                tempPoints.push(target.x, 0, target.z);
+                break;
+            case 1:
+                tempPoints.push(entry.x, entry.y, 0);
+                tempPoints.push(target.x, target.y, 0);
+                break;
+            case 2:
+                tempPoints.push(0, entry.y, entry.z);
+                tempPoints.push(0, target.y, target.z);
+                break;
+        }
+
+        lineArray[i].geometry.setPositions(tempPoints);
+        lineArray[i].geometry.NeedsUpdate = true;
+        lineArray[i].visible = true;
+    }
+}
+
+// Handle mouse events (Click and update the helper point)
+function getMousePos(event) {
+    if (!isSelectingPoint && !(mesauringStatus == 1 || mesauringStatus == 2)) return;
+
+    if (count > 0) {
+        count--;
+        return;
+    }
+
+    count = 10;
+    const containerID = Number(event.target.parentElement.id.split('-')[2]);
+    const rect = document.getElementById(`nifti-container-${containerID}`).getBoundingClientRect();
+    const raycaster = new THREE.Raycaster();
+
+    let pointer = new THREE.Vector2();
+
+    pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+    raycaster.layers.set(containerID + 1);
+    raycaster.setFromCamera(pointer, cameras[containerID]);
+
+    const intersects = raycaster.intersectObject(planes[containerID]);
+    if (intersects.length === 0) return;
+
+    currPointPos.copy(intersects[0].point);
+
+    switch (containerID) {
+        case 0:
+            currPointPos.y = Math.round(sliders[0].value - (header.dims[3] - 1) / 2);
+            break;
+        case 1:
+            currPointPos.z = Math.round(sliders[1].value - (header.dims[2] - 1) / 2);
+            break;
+        case 2:
+            currPointPos.x = Math.round(sliders[2].value - (header.dims[1] - 1) / 2);
+            break;
+    }
+
+    const newSliderValues =
+        [
+            Math.round((header.dims[3] - 1) / 2 + currPointPos.y),
+            Math.round((header.dims[2] - 1) / 2 + currPointPos.z),
+            Math.round((header.dims[1] - 1) / 2 + currPointPos.x)
+        ];
+
+    const pointFloat = new Float32Array(currPointPos);
+    // console.log(pointFloat);
+    for (let i = 0; i < 3; i++) {
+        if (sliders[i].value !== newSliderValues[i] && i !== containerID) {
+            sliders[i].value = newSliderValues[i];
+            sliders[i].oninput();
+        }
+    }
+
+    update3DPointObject(pointFloat);
+
+    setVisPointsFromPos(currPointPos);
+}
+
+function onMouseMove(evt) {
+    if (isMouseDown) {
+        getMousePos(evt);
     }
 }

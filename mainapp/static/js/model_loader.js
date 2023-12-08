@@ -1,101 +1,71 @@
 import * as THREE from 'three';
 import { STLLoader } from 'stl-loader';
 import { OrbitControls } from 'orbit-control';
-import { getVisability, addPointToLine, hideRecLine, displayRecLine } from './nifti_loader.js';
+import { getVisability, addPointToLine, hideRecLine } from './nifti_loader.js';
 import { LineGeometry } from 'line-geometry';
 import { LineMaterial } from 'line-material';
 import { Line2 } from 'line2';
 
+// THREE.JS Setup
 const container = document.getElementById('threejs-container');
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 2000);
-// camera.LookAt = new THREE.Vector3(0, 0, 800);
 camera.position.z = 600;
-const geometry = new THREE.BufferGeometry();
-
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setSize(container.clientWidth, container.clientHeight);
-renderer.setClearColor(0x000000, 0);  // make it transparent
+renderer.setClearColor(0x000000, 0);
 const brainGroup = new THREE.Group();
 const controls = new OrbitControls(camera, renderer.domElement);
 
+// Ball Joint
 const ballJointGeometry = new THREE.SphereGeometry(10, 32, 32);
 const ballJointMaterial = new THREE.MeshBasicMaterial({ color: 0xb7410e });
 const ballJointMesh = new THREE.Mesh(ballJointGeometry, ballJointMaterial);
 
+// Needle Point
 const needleGeometry = new THREE.SphereGeometry(3, 32, 32);
 const needleMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
 const needleMesh = new THREE.Mesh(needleGeometry, needleMaterial);
 
-const refPointGeometry = new THREE.SphereGeometry(3, 32, 32);
-const refPointMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-const refPointMesh = new THREE.Mesh(refPointGeometry, refPointMaterial);
+// Helper Point (Shown when setting entry/target point and measuring)
+const visPointGeometry = new THREE.SphereGeometry(3, 32, 32);
+const visPointMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+const visPointMesh = new THREE.Mesh(visPointGeometry, visPointMaterial);
 
+// Reference Line connecting entry and target point
 const refLineGeometry = new LineGeometry();
 const refLineMaterial = new LineMaterial({ color: 0x00ff00, linewidth: 0.01 });
 const refLineMesh = new Line2(refLineGeometry, refLineMaterial);
 
+// Measuring Line connecting two measureing points
 const meaLineGeometry = new LineGeometry();
 const meaLineMaterial = new LineMaterial({ color: 0x0000ff, linewidth: 0.01 });
 const meaLineMesh = new Line2(meaLineGeometry, meaLineMaterial);
 
+// Read config file from json
 let colors = {};
-let points = [];
-
 fetch('/static/json/config.json')
     .then((response) => response.json())
     .then((json) => { colors = json['colors']; });
+
+let points = [];
 
 
 // current skull quaternion as string
 export var currentSkullPosition = "";
 
+// set the visability of the helper point
 export function set3DPointVisability(visability, color = null) {
-    refPointMesh.visible = visability;
+    visPointMesh.visible = visability;
 
     if (color !== null) {
-        refPointMaterial.color.setHex(color);
+        visPointMaterial.color.setHex(color);
     }
 }
 
-function hideRecordingLine() {
-    hideRecLine();
-}
-
-export async function displayPatientPosition(patient) {
-    let patientData = await fetch(`/media/recorded_data/${patient}.csv`);
-
-    if (patientData.ok) {
-        let csvText = await patientData.text();
-        patientData = parseCSV(csvText);
-
-        let allPoints = [];
-
-
-
-        // iterate through each row of the csv file
-        for (let i = 1; i < patientData.length; i++) {
-            // convert each row to a vector3
-            let x = parseFloat(patientData[i]['x']);
-            let y = parseFloat(patientData[i]['y']);
-            let z = parseFloat(patientData[i]['z']);
-
-            if (isNaN(x) || isNaN(y) || isNaN(z)) continue;
-
-            let newPos = new THREE.Vector3(x, y, z);
-            newPos = convertChai3Dto3DPosition(newPos);
-            newPos = convert3Dto2DPosition(newPos);
-
-            allPoints.push(newPos);
-        }
-
-        displayRecLine(allPoints);
-
-    }
-
-}
-
+// replay patient position from csv file
 export async function replayPatientPosition(patient, shouldDelay = true) {
+    hideRecLine();
     let patientData = await fetch(`/media/recorded_data/${patient}.csv`);
 
     if (patientData.ok) {
@@ -133,6 +103,7 @@ export async function replayPatientPosition(patient, shouldDelay = true) {
     }
 }
 
+// parse csv file from string
 function parseCSV(csvText) {
     let lines = csvText.split("\n");
     let result = [];
@@ -152,10 +123,12 @@ function parseCSV(csvText) {
     return result;
 }
 
+// update the helper point position
 export function update3DPointObject(newPos) {
-    refPointMesh.position.set(newPos[0], newPos[1], newPos[2]);
+    visPointMesh.position.set(newPos[0], newPos[1], newPos[2]);
 }
 
+// update the reference line or measuring line
 export function update3DLine(points, isRefLine) {
     if (isRefLine) {
         refLineGeometry.setPositions(points);
@@ -168,6 +141,7 @@ export function update3DLine(points, isRefLine) {
     }
 }
 
+// hide the reference line or measuring line
 export function hide3DLine(isRefLine) {
     if (isRefLine) {
         refLineMesh.visible = false;
@@ -176,7 +150,7 @@ export function hide3DLine(isRefLine) {
     }
 }
 
-
+// set the visability of a segment
 export function set3DSegVisability(id, visability) {
     let segment = scene.getObjectByName(id.toString());
 
@@ -185,9 +159,10 @@ export function set3DSegVisability(id, visability) {
     }
 }
 
+// Read needle position from websocket
+// TO-DO: work on the offset to the needle position
 const offset = new THREE.Vector3();
-offset.set(-0.0125, 0, -0.0125);
-
+offset.set(0.0125, 0, 0.0125);
 export function getNeedlePosition() {
     const socket = new WebSocket('ws://' + window.location.host + '/ws/needle_message/');
     socket.onmessage = function (e) {
@@ -202,6 +177,8 @@ export function getNeedlePosition() {
 
 }
 
+
+// Read skull orientation from websocket
 export function getSkullOrientation() {
     const socket = new WebSocket('ws://' + window.location.host + '/ws/skull_message/');
     socket.onmessage = function (e) {
@@ -217,6 +194,7 @@ export function getSkullOrientation() {
     };
 }
 
+// Draw a point on the screen
 function drawPoint(newPoint, isActual) {
     // Check if points array is empty or new point is different from the last point
     if (points.length === 0 || !newPoint.equals(points[points.length - 1])) {
@@ -230,6 +208,7 @@ function drawPoint(newPoint, isActual) {
     }
 }
 
+// Draw the skull on the screen
 function drawSkull(quaternion) {
     if (ballJointMesh) {
         currentSkullPosition = `${quaternion.x},${quaternion.y},${quaternion.z},${quaternion.w}`;
@@ -259,7 +238,7 @@ function drawSkull(quaternion) {
 
 // function testRot()
 // {
-//     t += 0.01;
+//     t -= 0.01;
 //     const quaternion = new THREE.Quaternion();
 //     quaternion.setFromEuler(new THREE.Euler(t, 0, 0));
 
@@ -270,31 +249,20 @@ function drawSkull(quaternion) {
 
 // testRot();
 
-const quaternion = new THREE.Quaternion();
-quaternion.setFromEuler(new THREE.Euler())
-
-
 
 function render() {
     requestAnimationFrame(render);
     renderer.render(scene, camera);
 }
 
-function rotateObjectAroundAxisQuaternion(object, axis, radians) {
-    const quaternion = new THREE.Quaternion();
-    quaternion.setFromAxisAngle(axis, radians);
-    object.applyQuaternion(quaternion);
-}
-
+// Load the stl model from the given file paths
 export default function loadSTLModel(stlFiles) {
     while (scene.children.length > 0) {
         scene.remove(scene.children[0]);
     }
 
-
     getNeedlePosition();
     getSkullOrientation();
-
 
     container.innerHTML = '';
     container.appendChild(renderer.domElement);
@@ -313,6 +281,7 @@ export default function loadSTLModel(stlFiles) {
 
     }
 
+    // Haptic scene setup
     const stlGroup = new THREE.Group();
     const referenceGroup = new THREE.Group();
 
@@ -327,29 +296,33 @@ export default function loadSTLModel(stlFiles) {
     scene.add(ballJointMesh);
     scene.add(needleMesh);
 
+    // let testSphere = new THREE.SphereGeometry(10, 32, 32);
+    // let testMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+    // let testMesh = new THREE.Mesh(testSphere, testMaterial);
+    // let pos = new THREE.Vector3(0.36, 0, 0.1);
+    // pos = convertChai3Dto3DPosition(pos);
+    // testMesh.position.set(pos.x, pos.y, pos.z);
+    // scene.add(testMesh);
 
     scene.add(new THREE.AxesHelper(100));
-    referenceGroup.add(refPointMesh);
-    refPointMesh.visible = false;
+    referenceGroup.add(visPointMesh);
+    visPointMesh.visible = false;
     referenceGroup.add(refLineMesh);
     refLineMesh.visible = false;
     referenceGroup.add(meaLineMesh);
     meaLineMesh.visible = false;
 
-    const material = new THREE.LineBasicMaterial({ color: 0xff0000 });
-    const line = new THREE.Line(geometry, material);
-    scene.add(line);
-
     const loader = new STLLoader();
 
     let count = 0;
-    // console.log(stlFiles)
+    
+    // load each stl file and add it to the scene
     stlFiles.forEach(fileName => {
         loader.load(
             `${fileName}`,
             function (geometry) {
                 const currSeg = Number(fileName.replace(/^.*(\\|\/|\:)/, '').split('.')[0]);
-                const material = new THREE.MeshStandardMaterial({ color: Number("0x" + colors[currSeg]), transparent: true, opacity: 0.8 });
+                const material = new THREE.MeshStandardMaterial({ color: Number("0x" + colors[currSeg]), transparent: true, opacity: 0.95 });
                 const mesh = new THREE.Mesh(geometry, material);
                 mesh.name = String(currSeg);
                 stlGroup.add(mesh);
@@ -358,6 +331,7 @@ export default function loadSTLModel(stlFiles) {
                 }
                 count++;
 
+                // once all stl files are loaded, set the camera target to the ball joint
                 if (count == stlFiles.length) {
                     controls.target = new THREE.Vector3(getBallJointtoOriginTranslation().x, getBallJointtoOriginTranslation().y, getBallJointtoOriginTranslation().z);
                     controls.update();
@@ -382,6 +356,8 @@ export default function loadSTLModel(stlFiles) {
 }
 
 
+// Below are helper functions to convert between different coordinate systems
+// TO-DO: Some values are not 100% accurate, need to be fixed
 function get2Dto3DQuaternion() {
     const quaternionX = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
     const quaternionZ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), Math.PI);
@@ -391,14 +367,13 @@ function get2Dto3DQuaternion() {
 }
 
 function getBallJointtoOriginTranslation() {
-    const translation = new THREE.Vector3(0.39, 0.0, 0.004);
-    translation.multiplyScalar(1000);
-    return translation;
+    const translation = new THREE.Vector3(0.39, 0.0, 0.0);
+    return convertChai3Dto3DPosition(translation);
 }
 
 function getSkulltoBallJointQuaternion() {
     const quaternionY = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), - Math.PI / 2);
-    const quaternionZ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), Math.PI * 4 / 3);
+    const quaternionZ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), Math.PI * 7 / 6);
     const combinedQuaternion = new THREE.Quaternion();
     combinedQuaternion.multiplyQuaternions(quaternionZ, quaternionY);
     return combinedQuaternion;
@@ -413,7 +388,7 @@ function getSkulltoBallJointTranslation() {
 function convertBallJointRotationtoSkullRotation(ballJointRotation) {
     const euler = new THREE.Euler();
     euler.setFromQuaternion(ballJointRotation);
-    euler.set(euler.z, euler.y, - euler.x);
+    euler.set(- euler.z, - euler.y, - euler.x);
     const quaternion = new THREE.Quaternion();
     quaternion.setFromEuler(euler);
     return quaternion;
